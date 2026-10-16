@@ -1,0 +1,6 @@
+{
+  "name": "Front-Page Flip",
+  "description": "Front-Page Flip: Dedicated educational PDF library for university and school students. Notes, Solutions, Learn.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
