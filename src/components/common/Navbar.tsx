@@ -60,24 +60,24 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10">
+        <div className="flex w-full items-center justify-between h-16">
           {/* Left: Brand Logo */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6 lg:gap-10 xl:gap-12 shrink-0">
             <div
               onClick={() => onNavigate('home')}
               className="cursor-pointer inline-flex items-center select-none"
             >
               <img
-                src="https://res.cloudinary.com/fi4r80wz/image/upload/v1792743191/fpf_logo_ckadeh.png"
+                src="https://res.cloudinary.com/fi4r80wz/image/upload/v1792825222/fpf_logo_99_spkx2y.png"
                 alt="Front-Page Flip"
-                className="h-10 sm:h-11 w-auto object-contain transition-transform duration-200 hover:scale-105"
+                className="h-16 sm:h-18 w-auto object-contain transition-transform duration-200 hover:scale-105"
                 loading="eager"
               />
             </div>
 
             {/* Desktop Center Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-1">
+            <nav className="hidden md:flex items-center gap-3 lg:gap-5 xl:gap-7">
               {navLinks.map((link) => {
                 const isActive = activeTab === link.id;
                 return (
@@ -102,7 +102,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Navigation Controls */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-5 lg:gap-6 shrink-0">
             {/* Search Button */}
             <button
               type="button"
