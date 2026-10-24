@@ -28,41 +28,41 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({ userName, onSearch }) =>
   };
 
   return (
-    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EBF3FF] via-[#E9F5FE] to-[#E3F2FD] border border-[#DCEBFE] p-6 sm:p-8 md:p-10 shadow-xs mb-10">
+    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F0F6FF] via-[#F5F9FE] to-[#EBF4FE] border border-[#DCE8F8] p-6 sm:p-8 md:p-10 shadow-xs mb-10">
       {/* Decorative subtle ambient circles */}
-      <div className="absolute top-0 right-1/4 w-72 h-72 bg-white/40 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-10 right-10 w-60 h-60 bg-teal-100/30 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute top-0 right-1/4 w-80 h-80 bg-white/50 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-10 right-10 w-72 h-72 bg-blue-100/40 rounded-full blur-2xl pointer-events-none" />
 
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
         {/* Left Content Area */}
         <div className="w-full md:max-w-xl text-left">
           {/* Greeting matching reference: "Good morning, Arkoparno! 👋" */}
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#102A56] tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl md:text-[34px] font-extrabold text-[#102A56] tracking-tight flex items-center gap-2">
             <span>
               {getGreeting()}, {firstName}!
             </span>
             <span className="inline-block animate-wave origin-bottom-right">👋</span>
           </h1>
 
-          <p className="mt-2 text-sm sm:text-base text-[#475569] font-medium leading-relaxed">
+          <p className="mt-2 text-sm sm:text-base text-[#475569] font-normal leading-relaxed">
             Find the perfect notes, study materials and PDFs for your subjects.
           </p>
 
-          {/* Prominent Search Bar */}
+          {/* Prominent Search Bar flush button matching image_f78d44c1.png */}
           <form onSubmit={handleSubmit} className="mt-6 flex items-center max-w-lg">
-            <div className="relative w-full flex items-center bg-white rounded-xl shadow-xs border border-[#E2E8F0] focus-within:border-[#1677FF] focus-within:ring-3 focus-within:ring-[#1677FF]/15 transition-all">
-              <Search className="w-5 h-5 text-slate-400 ml-4 shrink-0" />
+            <div className="relative w-full flex items-center bg-white rounded-lg shadow-xs border border-[#CBD5E1] focus-within:border-[#1677FF] focus-within:ring-2 focus-within:ring-[#1677FF]/15 transition-all overflow-hidden">
+              <Search className="w-4 h-4 text-slate-400 ml-3.5 shrink-0" />
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search subjects, topics or PDF notes..."
-                className="w-full py-3.5 pl-3 pr-4 text-sm text-[#152238] placeholder-slate-400 bg-transparent outline-hidden font-medium"
+                className="w-full py-2.5 sm:py-3 pl-3 pr-4 text-xs sm:text-sm text-[#152238] placeholder-slate-400 bg-transparent outline-hidden font-medium"
               />
               <button
                 type="submit"
                 aria-label="Submit search"
-                className="m-1.5 p-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white rounded-lg transition-colors flex items-center justify-center shrink-0 shadow-xs"
+                className="h-full px-5 py-2.5 sm:py-3 bg-[#1677FF] hover:bg-[#0E63DC] text-white transition-colors flex items-center justify-center shrink-0 cursor-pointer"
               >
                 <Search className="w-4 h-4" />
               </button>
@@ -70,9 +70,22 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({ userName, onSearch }) =>
           </form>
         </div>
 
-        {/* Right Illustration: Stacked Books & Pencil Stand */}
-        <div className="hidden md:flex shrink-0 items-center justify-center">
-          <DashboardHeroIllustration />
+        {/* Right Illustration: 3D Stacked Books & Pencil Stand matching image_f78d44c1.png */}
+        <div className="hidden md:flex shrink-0 items-center justify-end relative h-40 w-72 overflow-hidden select-none">
+          <img
+            src="/assets/aistudio/image_f78d44c1.png"
+            alt="Study materials and books"
+            className="h-full w-auto object-cover object-right select-none pointer-events-none drop-shadow-sm scale-110 origin-right"
+            onError={(e) => {
+              // Fallback to vector illustration if image fails
+              e.currentTarget.style.display = 'none';
+              const fallback = document.getElementById('hero-vector-fallback');
+              if (fallback) fallback.style.display = 'block';
+            }}
+          />
+          <div id="hero-vector-fallback" style={{ display: 'none' }}>
+            <DashboardHeroIllustration />
+          </div>
         </div>
       </div>
     </section>

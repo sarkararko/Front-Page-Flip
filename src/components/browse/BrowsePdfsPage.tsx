@@ -9,6 +9,7 @@ interface BrowsePdfsPageProps {
   initialSearchQuery?: string;
   initialSubjectId?: string;
   readLaterIds: string[];
+  readingProgressMap?: Record<string, { lastPageRead: number; totalPages: number }>;
   onToggleReadLater: (pdfId: string, e: React.MouseEvent) => void;
   onViewPdf: (pdf: PdfResource) => void;
   onSelectSubject: (subject: Subject) => void;
@@ -20,6 +21,7 @@ export const BrowsePdfsPage: React.FC<BrowsePdfsPageProps> = ({
   initialSearchQuery = '',
   initialSubjectId,
   readLaterIds,
+  readingProgressMap,
   onToggleReadLater,
   onViewPdf,
 }) => {
@@ -197,6 +199,7 @@ export const BrowsePdfsPage: React.FC<BrowsePdfsPageProps> = ({
               key={pdf.id}
               pdf={pdf}
               isReadLater={readLaterIds.includes(pdf.id)}
+              readingProgress={readingProgressMap?.[pdf.id]}
               onToggleReadLater={onToggleReadLater}
               onViewPdf={onViewPdf}
             />

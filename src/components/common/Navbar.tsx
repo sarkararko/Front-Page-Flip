@@ -64,12 +64,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Left: Brand Logo */}
           <div className="flex items-center gap-8">
-            <Logo
-              size="sm"
-              showTagline={false}
+            <div
               onClick={() => onNavigate('home')}
-              className="cursor-pointer"
-            />
+              className="cursor-pointer inline-flex items-center select-none"
+            >
+              <img
+                src="https://res.cloudinary.com/fi4r80wz/image/upload/v1792743191/fpf_logo_ckadeh.png"
+                alt="Front-Page Flip"
+                className="h-10 sm:h-11 w-auto object-contain transition-transform duration-200 hover:scale-105"
+                loading="eager"
+              />
+            </div>
 
             {/* Desktop Center Navigation Links */}
             <nav className="hidden md:flex items-center space-x-1">

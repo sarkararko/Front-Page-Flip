@@ -5,6 +5,7 @@ import { PdfResource } from '../../types';
 interface PdfCardProps {
   pdf: PdfResource;
   isReadLater?: boolean;
+  readingProgress?: { lastPageRead: number; totalPages: number };
   onToggleReadLater?: (pdfId: string, e: React.MouseEvent) => void;
   onViewPdf: (pdf: PdfResource) => void;
 }
@@ -12,6 +13,7 @@ interface PdfCardProps {
 export const PdfCard: React.FC<PdfCardProps> = ({
   pdf,
   isReadLater = false,
+  readingProgress,
   onToggleReadLater,
   onViewPdf,
 }) => {
@@ -137,6 +139,38 @@ export const PdfCard: React.FC<PdfCardProps> = ({
         <p className="text-xs text-[#94A3B8] mt-1 font-normal">
           {pdf.fileSize} • {pdf.pageCount} pages
         </p>
+
+        {/* Reading Progress Percentage Bar */}
+        {readingProgress && readingProgress.lastPageRead > 0 && (
+          <div className="mt-2.5 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between text-[11px] font-semibold mb-1">
+              <span className="text-[#1677FF]">
+                Page {readingProgress.lastPageRead} of {readingProgress.totalPages || pdf.pageCount}
+              </span>
+              <span className="font-mono text-slate-500 font-bold">
+                {Math.min(
+                  100,
+                  Math.round(
+                    (readingProgress.lastPageRead / (readingProgress.totalPages || pdf.pageCount || 1)) * 100
+                  )
+                )}%
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#1677FF] to-[#0DB7A5] rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.round(
+                      (readingProgress.lastPageRead / (readingProgress.totalPages || pdf.pageCount || 1)) * 100
+                    )
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action Button: View PDF -> */}

@@ -15,6 +15,7 @@ interface SubjectDetailPageProps {
   pdfs: PdfResource[];
   isFavorite: boolean;
   readLaterIds: string[];
+  readingProgressMap?: Record<string, { lastPageRead: number; totalPages: number }>;
   onToggleFavorite: (subjectId: string) => void;
   onToggleReadLater: (pdfId: string, e: React.MouseEvent) => void;
   onViewPdf: (pdf: PdfResource) => void;
@@ -26,6 +27,7 @@ export const SubjectDetailPage: React.FC<SubjectDetailPageProps> = ({
   pdfs,
   isFavorite,
   readLaterIds,
+  readingProgressMap,
   onToggleFavorite,
   onToggleReadLater,
   onViewPdf,
@@ -154,6 +156,7 @@ export const SubjectDetailPage: React.FC<SubjectDetailPageProps> = ({
               key={pdf.id}
               pdf={pdf}
               isReadLater={readLaterIds.includes(pdf.id)}
+              readingProgress={readingProgressMap?.[pdf.id]}
               onToggleReadLater={onToggleReadLater}
               onViewPdf={onViewPdf}
             />

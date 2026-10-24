@@ -123,6 +123,22 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Prepared data for views (computed unconditionally before any early returns)
+  const savedPdfs = pdfs.filter((p) => readLaterIds.includes(p.id));
+  const favoriteSubjectsList = subjects.filter((s) => userFavorites.includes(s.id));
+  const recentlyViewedItems = currentUser ? ApiService.getRecentlyViewed(currentUser.id) : [];
+
+  const readingProgressMap = React.useMemo(() => {
+    const map: Record<string, { lastPageRead: number; totalPages: number }> = {};
+    recentlyViewedItems.forEach((item) => {
+      map[item.pdfId] = {
+        lastPageRead: item.lastPageRead,
+        totalPages: item.totalPages,
+      };
+    });
+    return map;
+  }, [recentlyViewedItems]);
+
   // If viewing a PDF document, show full-screen interactive reader
   if (currentUser && activePdf) {
     return (
@@ -140,11 +156,6 @@ export default function App() {
   if (!currentUser) {
     return <AuthPage onSuccess={handleLoginSuccess} />;
   }
-
-  // Prepared data for views
-  const savedPdfs = pdfs.filter((p) => readLaterIds.includes(p.id));
-  const favoriteSubjectsList = subjects.filter((s) => userFavorites.includes(s.id));
-  const recentlyViewedItems = ApiService.getRecentlyViewed(currentUser.id);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans selection:bg-[#1677FF]/20 selection:text-[#102A56]">
@@ -167,6 +178,7 @@ export default function App() {
             recentlyAddedPdfs={pdfs}
             userFavorites={userFavorites}
             readLaterIds={readLaterIds}
+            readingProgressMap={readingProgressMap}
             onSearch={handleHeroSearch}
             onSelectSubject={handleSelectSubject}
             onViewAllSubjects={() => handleNavigate('subjects')}
@@ -184,6 +196,7 @@ export default function App() {
             pdfs={pdfs}
             initialSearchQuery={browseSearchQuery}
             readLaterIds={readLaterIds}
+            readingProgressMap={readingProgressMap}
             onToggleReadLater={handleToggleReadLater}
             onViewPdf={handleViewPdf}
             onSelectSubject={handleSelectSubject}
@@ -195,6 +208,7 @@ export default function App() {
             subjects={subjects}
             pdfs={pdfs}
             readLaterIds={readLaterIds}
+            readingProgressMap={readingProgressMap}
             onToggleReadLater={handleToggleReadLater}
             onViewPdf={handleViewPdf}
             onSelectSubject={handleSelectSubject}
@@ -216,6 +230,7 @@ export default function App() {
             pdfs={pdfs}
             isFavorite={userFavorites.includes(selectedSubject.id)}
             readLaterIds={readLaterIds}
+            readingProgressMap={readingProgressMap}
             onToggleFavorite={(id) => handleToggleFavorite(id)}
             onToggleReadLater={handleToggleReadLater}
             onViewPdf={handleViewPdf}

@@ -113,15 +113,19 @@ export const MyLibraryPage: React.FC<MyLibraryPageProps> = ({
 
           {savedPdfs.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {savedPdfs.map((pdf) => (
-                <PdfCard
-                  key={pdf.id}
-                  pdf={pdf}
-                  isReadLater={true}
-                  onToggleReadLater={() => onRemoveReadLater(pdf.id)}
-                  onViewPdf={onViewPdf}
-                />
-              ))}
+              {savedPdfs.map((pdf) => {
+                const prog = recentlyViewed.find((r) => r.pdfId === pdf.id);
+                return (
+                  <PdfCard
+                    key={pdf.id}
+                    pdf={pdf}
+                    isReadLater={true}
+                    readingProgress={prog}
+                    onToggleReadLater={() => onRemoveReadLater(pdf.id)}
+                    onViewPdf={onViewPdf}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 text-center max-w-lg mx-auto shadow-xs">

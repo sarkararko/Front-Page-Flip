@@ -12,6 +12,7 @@ interface HomePageProps {
   recentlyAddedPdfs: PdfResource[];
   userFavorites: string[];
   readLaterIds: string[];
+  readingProgressMap?: Record<string, { lastPageRead: number; totalPages: number }>;
   onSearch: (query: string) => void;
   onSelectSubject: (subject: Subject) => void;
   onViewAllSubjects: () => void;
@@ -28,6 +29,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   recentlyAddedPdfs,
   userFavorites,
   readLaterIds,
+  readingProgressMap,
   onSearch,
   onSelectSubject,
   onViewAllSubjects,
@@ -113,6 +115,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               key={pdf.id}
               pdf={pdf}
               isReadLater={readLaterIds.includes(pdf.id)}
+              readingProgress={readingProgressMap?.[pdf.id]}
               onToggleReadLater={onToggleReadLater}
               onViewPdf={onViewPdf}
             />
