@@ -73,17 +73,26 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
 
         {/* 4x2 Grid of Subject Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          {displayedSubjects.map((subject) => (
-            <SubjectCard
-              key={subject.id}
-              subject={subject}
-              isFavorite={userFavorites.includes(subject.id)}
-              onToggleFavorite={onToggleFavorite}
-              onClick={onSelectSubject}
-            />
-          ))}
-        </div>
+        {displayedSubjects.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {displayedSubjects.map((subject) => (
+              <SubjectCard
+                key={subject.id}
+                subject={subject}
+                isFavorite={userFavorites.includes(subject.id)}
+                onToggleFavorite={onToggleFavorite}
+                onClick={onSelectSubject}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-dashed border-[#CBD5E1] p-8 text-center">
+            <p className="text-sm font-semibold text-[#102A56]">No subjects available yet</p>
+            <p className="text-xs text-[#64748B] mt-1">
+              Study subjects will appear here once published by the administrator.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* 3. Recently Added PDFs Section */}
@@ -109,18 +118,27 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
 
         {/* 4-column Grid of PDF Resource Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          {displayedPdfs.map((pdf) => (
-            <PdfCard
-              key={pdf.id}
-              pdf={pdf}
-              isReadLater={readLaterIds.includes(pdf.id)}
-              readingProgress={readingProgressMap?.[pdf.id]}
-              onToggleReadLater={onToggleReadLater}
-              onViewPdf={onViewPdf}
-            />
-          ))}
-        </div>
+        {displayedPdfs.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {displayedPdfs.map((pdf) => (
+              <PdfCard
+                key={pdf.id}
+                pdf={pdf}
+                isReadLater={readLaterIds.includes(pdf.id)}
+                readingProgress={readingProgressMap?.[pdf.id]}
+                onToggleReadLater={onToggleReadLater}
+                onViewPdf={onViewPdf}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-dashed border-[#CBD5E1] p-8 text-center">
+            <p className="text-sm font-semibold text-[#102A56]">No study materials published yet</p>
+            <p className="text-xs text-[#64748B] mt-1">
+              Genuine PDF notes will appear here once uploaded by the administrator.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* 4. Bottom Banner: Build Your Learning Collection */}

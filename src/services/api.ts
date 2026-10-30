@@ -2,6 +2,44 @@ import { User, Subject, PdfResource, RecentlyViewedItem } from '../types';
 import { StorageService, AUTHORIZED_CREATOR_EMAIL, hashPassword } from './storage';
 import { PdfFileStore } from './pdfFileStore';
 
+const API_BASE = '/api/v1';
+
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T | null> {
+  const token = StorageService.getSessionToken();
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    ...((options.headers as Record<string, string>) || {}),
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => null);
+      throw new Error(errData?.message || `HTTP ${res.status}: ${res.statusText}`);
+    }
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await res.json();
+    }
+    return null;
+  } catch (err: any) {
+    // If server returned an HTTP error, propagate it
+    if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
+      throw err;
+    }
+    return null;
+  }
+}
+
 // API Service with Server-Grade Security and Role Enforcement
 export const ApiService = {
   // --- STUDENT AUTHENTICATION ---
@@ -9,6 +47,33 @@ export const ApiService = {
     const cleanEmail = email.toLowerCase().trim();
     if (!cleanEmail) {
       throw new Error('Please enter a valid email address.');
+    }
+
+    // Attempt real backend call first
+    try {
+      const backendRes = await apiFetch<any>('/auth/student/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: cleanEmail, password: password || '' }),
+      });
+      if (backendRes && backendRes.token && backendRes.user) {
+        const user: User = {
+          id: backendRes.user.id,
+          name: backendRes.user.name,
+          email: backendRes.user.email,
+          role: 'student',
+          emailVerified: backendRes.user.emailVerified,
+          createdAt: new Date().toISOString(),
+          provider: 'email',
+          avatar: backendRes.user.name.slice(0, 2).toUpperCase(),
+        };
+        StorageService.setCurrentUser(user);
+        StorageService.setSessionToken(backendRes.token);
+        return { user, token: backendRes.token };
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
     }
 
     const users = StorageService.getUsers();
@@ -52,6 +117,15 @@ export const ApiService = {
     return { user, token };
   },
 
+  // --- UNIFIED LOGIN (Routes to Admin or Student according to creator status) ---
+  async login(email: string, password?: string): Promise<{ user: User; token: string }> {
+    const cleanEmail = email.toLowerCase().trim();
+    if (cleanEmail === AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
+      return this.adminLogin(cleanEmail, password);
+    }
+    return this.studentLogin(cleanEmail, password);
+  },
+
   // --- ADMINISTRATOR AUTHENTICATION (Restricted to Authorized Creator) ---
   async adminLogin(email: string, password?: string): Promise<{ user: User; token: string }> {
     const cleanEmail = email.toLowerCase().trim();
@@ -61,6 +135,33 @@ export const ApiService = {
       throw new Error(
         `403 Forbidden: Access denied. Only the authorized creator account (${AUTHORIZED_CREATOR_EMAIL}) has permission to access the Administrator Portal.`
       );
+    }
+
+    // Attempt real backend call first
+    try {
+      const backendRes = await apiFetch<any>('/auth/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: cleanEmail, password: password || '' }),
+      });
+      if (backendRes && backendRes.token && backendRes.user) {
+        const adminUser: User = {
+          id: backendRes.user.id,
+          name: backendRes.user.name,
+          email: backendRes.user.email,
+          role: 'admin',
+          emailVerified: true,
+          createdAt: new Date().toISOString(),
+          provider: 'email',
+          avatar: 'AD',
+        };
+        StorageService.setCurrentUser(adminUser);
+        StorageService.setSessionToken(backendRes.token);
+        return { user: adminUser, token: backendRes.token };
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
     }
 
     const users = StorageService.getUsers();
@@ -237,6 +338,25 @@ export const ApiService = {
 
   // --- SUBJECT MANAGEMENT (Strict Backend RBAC Check) ---
   async getSubjects(): Promise<Subject[]> {
+    try {
+      const backendSubjects = await apiFetch<any[]>('/subjects');
+      if (backendSubjects && Array.isArray(backendSubjects)) {
+        return backendSubjects.map((s) => ({
+          id: s.id,
+          name: s.name,
+          slug: s.slug,
+          description: s.description || '',
+          icon: s.icon || 'book',
+          iconColor: s.iconColor || '#1677FF',
+          iconBgColor: s.iconBgColor || '#EFF6FF',
+          pdfCount: s.pdfCount || 0,
+          topics: s.topics || [],
+          createdAt: s.createdAt,
+        }));
+      }
+    } catch {
+      // fallback to client storage
+    }
     return StorageService.getSubjects();
   },
 
@@ -245,6 +365,42 @@ export const ApiService = {
     if (!current || current.role !== 'admin' || current.email.toLowerCase() !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
       throw new Error('403 Forbidden: Only the authorized creator and administrator can create subjects.');
     }
+
+    try {
+      const created = await apiFetch<any>('/subjects', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: subject.name,
+          slug: subject.slug,
+          description: subject.description,
+          icon: subject.icon,
+          iconColor: subject.iconColor,
+          iconBgColor: subject.iconBgColor,
+          topics: subject.topics,
+        }),
+      });
+      if (created && created.id) {
+        const mapped: Subject = {
+          id: created.id,
+          name: created.name,
+          slug: created.slug,
+          description: created.description,
+          icon: created.icon,
+          iconColor: created.iconColor,
+          iconBgColor: created.iconBgColor,
+          pdfCount: created.pdfCount || 0,
+          topics: created.topics || [],
+          createdAt: created.createdAt || new Date().toISOString(),
+        };
+        StorageService.saveSubject(mapped);
+        return mapped;
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
+    }
+
     const newSubject: Subject = {
       ...subject,
       id: `sub-${Date.now()}`,
@@ -260,6 +416,14 @@ export const ApiService = {
     if (!current || current.role !== 'admin' || current.email.toLowerCase() !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
       throw new Error('403 Forbidden: Only the authorized creator and administrator can edit subjects.');
     }
+    try {
+      await apiFetch<any>(`/subjects/${subject.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(subject),
+      });
+    } catch {
+      // local fallback
+    }
     StorageService.saveSubject(subject);
     return subject;
   },
@@ -269,11 +433,55 @@ export const ApiService = {
     if (!current || current.role !== 'admin' || current.email.toLowerCase() !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
       throw new Error('403 Forbidden: Only the authorized creator and administrator can delete subjects.');
     }
+    try {
+      await apiFetch<any>(`/subjects/${id}`, {
+        method: 'DELETE',
+      });
+    } catch {
+      // local fallback
+    }
     StorageService.deleteSubject(id);
   },
 
   // --- PDF MANAGEMENT (Strict Backend RBAC Check) ---
   async getPdfs(params?: { subjectId?: string; searchQuery?: string; topic?: string }): Promise<PdfResource[]> {
+    try {
+      const url = params?.subjectId ? `/pdfs/subject/${params.subjectId}` : '/pdfs';
+      const backendPdfs = await apiFetch<any[]>(url);
+      if (backendPdfs && Array.isArray(backendPdfs)) {
+        let list: PdfResource[] = backendPdfs.map((p) => ({
+          id: p.id,
+          title: p.title,
+          subjectId: p.subjectId,
+          subjectName: p.subjectName,
+          topic: p.topic,
+          course: p.course || '',
+          semester: p.semester || '',
+          description: p.description || '',
+          pageCount: p.pageCount || 1,
+          fileSize: p.fileSize || '1.0 MB',
+          fileName: p.fileName || `${p.title}.pdf`,
+          fileUrl: `/api/v1/pdfs/${p.id}/download`,
+          uploadDate: p.createdAt ? p.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+          isPublished: p.published !== false,
+          downloadAllowed: p.downloadAllowed !== false,
+          downloadCount: 0,
+        }));
+        if (params?.searchQuery && params.searchQuery.trim()) {
+          const q = params.searchQuery.toLowerCase().trim();
+          list = list.filter(
+            (p) =>
+              p.title.toLowerCase().includes(q) ||
+              p.subjectName.toLowerCase().includes(q) ||
+              p.topic.toLowerCase().includes(q)
+          );
+        }
+        return list;
+      }
+    } catch {
+      // fallback
+    }
+
     let pdfs = StorageService.getPdfs();
 
     if (params?.subjectId) {

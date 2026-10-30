@@ -1,8 +1,8 @@
 import React from 'react';
 
-export const LoginIllustration: React.FC<{ className?: string }> = ({ className = '' }) => {
+export const LoginIllustration: React.FC<{ className?: string }> = ({ className = 'max-w-[320px] h-[175px]' }) => {
   return (
-    <div className={`relative w-full max-w-[380px] h-[220px] select-none ${className}`}>
+    <div className={`relative w-full select-none ${className}`}>
       {/* Soft Ambient Shadow and Radial Glow */}
       <div className="absolute inset-x-8 bottom-2 h-14 bg-blue-300/25 blur-2xl rounded-full" />
 
