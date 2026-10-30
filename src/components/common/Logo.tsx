@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const STATIC_FPF_LOGO_URL = 'https://res.cloudinary.com/fi4r80wz/image/upload/v1792743191/fpf_logo_ckadeh.png';
+export const STATIC_FPF_LOGO_URL = 'https://res.cloudinary.com/fi4r80wz/image/upload/v1792825222/fpf_logo_99_spkx2y.png';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';

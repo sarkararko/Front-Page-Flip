@@ -23,7 +23,6 @@ interface NavbarProps {
   onNavigate: (tab: string, extra?: any) => void;
   onOpenSearch: () => void;
   onLogout: () => void;
-  onSwitchRole: (newRole: 'student' | 'admin') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -32,7 +31,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigate,
   onOpenSearch,
   onLogout,
-  onSwitchRole,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -108,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={onOpenSearch}
               title="Search notes and subjects"
-              className="p-2 text-slate-500 hover:text-[#1677FF] hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-2 text-slate-500 hover:text-[#1677FF] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             >
               <Search className="w-5 h-5" />
             </button>
@@ -117,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => onNavigate('my-library')}
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === 'my-library'
                   ? 'bg-blue-50 text-[#1677FF]'
                   : 'text-[#102A56] hover:bg-slate-100'
@@ -127,41 +125,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>My Library</span>
             </button>
 
-            {/* Notification Bell with Badge */}
+            {/* Notification Bell */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative p-2 text-slate-500 hover:text-[#102A56] hover:bg-slate-100 rounded-lg transition-colors"
+                className="relative p-2 text-slate-500 hover:text-[#102A56] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               >
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#1677FF] rounded-full ring-2 ring-white" />
               </button>
 
               {/* Notification Popover */}
               {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 text-xs">
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 text-xs">
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
                     <span className="font-bold text-[#102A56]">Notifications</span>
-                    <span className="text-[10px] text-blue-600 font-medium">Mark all as read</span>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex gap-2.5 items-start">
-                      <div className="w-2 h-2 mt-1.5 rounded-full bg-[#1677FF] shrink-0" />
-                      <div>
-                        <p className="font-semibold text-slate-800">New PDF Notes Published</p>
-                        <p className="text-slate-500 mt-0.5">Operating Systems Unit 3 notes are now available.</p>
-                        <span className="text-[10px] text-slate-400">2 hours ago</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2.5 items-start">
-                      <div className="w-2 h-2 mt-1.5 rounded-full bg-emerald-500 shrink-0" />
-                      <div>
-                        <p className="font-semibold text-slate-800">Welcome to Front-Page Flip</p>
-                        <p className="text-slate-500 mt-0.5">Explore subjects and save PDFs to your Read Later list.</p>
-                        <span className="text-[10px] text-slate-400">Yesterday</span>
-                      </div>
-                    </div>
+                  <div className="py-4 text-center text-slate-400">
+                    <Bell className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
+                    <p className="font-medium">No new notifications</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Updates on new notes will appear here</p>
                   </div>
                 </div>
               )}
@@ -173,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-1.5 p-1 rounded-full hover:ring-2 hover:ring-[#1677FF]/30 transition-all"
+                  className="flex items-center gap-1.5 p-1 rounded-full hover:ring-2 hover:ring-[#1677FF]/30 transition-all cursor-pointer"
                 >
                   <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#102A56] to-[#1677FF] text-white flex items-center justify-center font-bold text-xs shadow-xs tracking-wider">
                     {currentUser.avatar || 'AD'}
@@ -199,25 +182,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </span>
                       </div>
                       <p className="text-xs text-[#64748B] truncate mt-0.5">{currentUser.email}</p>
-                    </div>
-
-                    {/* Fast Switch Role (Student <-> Admin for easy grading/evaluation) */}
-                    <div className="px-3 py-2 bg-slate-50 mx-2 my-2 rounded-lg border border-slate-200/80">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-600 font-medium flex items-center gap-1">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Role Mode
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newRole = currentUser.role === 'admin' ? 'student' : 'admin';
-                            onSwitchRole(newRole);
-                          }}
-                          className="font-bold text-[#1677FF] hover:underline"
-                        >
-                          Switch to {currentUser.role === 'admin' ? 'Student' : 'Admin'}
-                        </button>
-                      </div>
                     </div>
 
                     {/* Menu Items */}

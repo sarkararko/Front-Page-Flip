@@ -79,10 +79,6 @@ export default function App() {
     setActiveTab('home');
   };
 
-  const handleSwitchRole = (newRole: 'student' | 'admin') => {
-    const updated = ApiService.switchRole(newRole);
-    setCurrentUser(updated);
-  };
 
   const handleToggleFavorite = (subjectId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -166,7 +162,6 @@ export default function App() {
         onNavigate={handleNavigate}
         onOpenSearch={() => setIsSearchModalOpen(true)}
         onLogout={handleLogout}
-        onSwitchRole={handleSwitchRole}
       />
 
       {/* Main Content Area */}
@@ -273,7 +268,6 @@ export default function App() {
             onNavigateLibrary={(subTab) => handleNavigate('my-library', { subTab })}
             onLogout={handleLogout}
             onUpdateUser={(updated) => setCurrentUser(updated)}
-            onSwitchRole={handleSwitchRole}
           />
         )}
       </main>

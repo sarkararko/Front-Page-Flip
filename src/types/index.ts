@@ -9,6 +9,7 @@ export interface User {
   emailVerified: boolean;
   createdAt: string;
   provider?: 'email' | 'google' | 'github';
+  passwordHash?: string;
 }
 
 export interface Subject {
@@ -40,6 +41,9 @@ export interface PdfResource {
   downloadAllowed: boolean;
   thumbnailStyle?: 'dark-notebook' | 'lecture-sheet' | 'green-board' | 'circuit-dark' | 'standard';
   downloadUrl?: string;
+  fileName?: string;
+  fileData?: string; // Real uploaded PDF Base64 / Blob data URI
+  mimeType?: string;
   contentPages?: Array<{
     pageNumber: number;
     title: string;

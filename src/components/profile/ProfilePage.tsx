@@ -22,7 +22,6 @@ interface ProfilePageProps {
   onNavigateLibrary: (subTab: 'read-later' | 'recently-viewed' | 'favorites') => void;
   onLogout: () => void;
   onUpdateUser: (user: User) => void;
-  onSwitchRole: (newRole: 'student' | 'admin') => void;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
@@ -33,7 +32,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onNavigateLibrary,
   onLogout,
   onUpdateUser,
-  onSwitchRole,
 }) => {
   const [name, setName] = useState(currentUser.name);
   const [isEditing, setIsEditing] = useState(false);
@@ -186,26 +184,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </button>
       </div>
 
-      {/* Fast Evaluator Mode Switcher */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <span className="text-xs font-bold text-[#1677FF] uppercase tracking-wider flex items-center gap-1.5 mb-1">
-            <Sparkles className="w-4 h-4 text-amber-500" /> Demo Evaluation Helper
-          </span>
-          <h4 className="text-base font-bold text-[#102A56]">Toggle User Account Role</h4>
-          <p className="text-xs text-slate-600 mt-0.5">
-            Switch between Student role (viewing &amp; bookmarking) and Administrator role (full subject &amp; PDF CRUD).
-          </p>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => onSwitchRole(currentUser.role === 'admin' ? 'student' : 'admin')}
-          className="px-4 py-2.5 bg-[#102A56] hover:bg-[#193B73] text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
-        >
-          Switch to {currentUser.role === 'admin' ? 'Student Mode' : 'Administrator Mode'}
-        </button>
-      </div>
 
       {/* Sign Out Card */}
       <div className="bg-white rounded-2xl border border-red-100 p-6 flex items-center justify-between">

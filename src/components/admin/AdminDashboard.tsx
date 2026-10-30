@@ -57,6 +57,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [pdfFileSize, setPdfFileSize] = useState('2.4 MB');
   const [pdfDownloadAllowed, setPdfDownloadAllowed] = useState(true);
   const [pdfIsPublished, setPdfIsPublished] = useState(true);
+  const [pdfFileData, setPdfFileData] = useState<string | null>(null);
+  const [pdfFileName, setPdfFileName] = useState('');
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   // Confirmation dialogs
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -119,32 +122,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     try {
       if (editingSubject) {
-        await ApiService.updateSubject(
-          {
-            ...editingSubject,
-            name: subjectName.trim(),
-            slug: subjectName.toLowerCase().replace(/\s+/g, '-'),
-            icon: subjectIcon,
-            iconColor: subjectColor,
-            description: subjectDescription.trim(),
-          },
-          currentUser.role
-        );
+        await ApiService.updateSubject({
+          ...editingSubject,
+          name: subjectName.trim(),
+          slug: subjectName.toLowerCase().replace(/\s+/g, '-'),
+          icon: subjectIcon,
+          iconColor: subjectColor,
+          description: subjectDescription.trim(),
+        });
         showToast('success', `Subject "${subjectName}" updated successfully.`);
       } else {
-        await ApiService.createSubject(
-          {
-            name: subjectName.trim(),
-            slug: subjectName.toLowerCase().replace(/\s+/g, '-'),
-            icon: subjectIcon,
-            iconColor: subjectColor,
-            iconBgColor: '#EFF6FF',
-            pdfCount: 0,
-            description: subjectDescription.trim(),
-            topics: ['Unit 1', 'Unit 2', 'Unit 3'],
-          },
-          currentUser.role
-        );
+        await ApiService.createSubject({
+          name: subjectName.trim(),
+          slug: subjectName.toLowerCase().replace(/\s+/g, '-'),
+          icon: subjectIcon,
+          iconColor: subjectColor,
+          iconBgColor: '#EFF6FF',
+          pdfCount: 0,
+          description: subjectDescription.trim(),
+          topics: ['Unit 1', 'Unit 2', 'Unit 3'],
+        });
         showToast('success', `New subject "${subjectName}" created.`);
       }
       setIsSubjectModalOpen(false);
@@ -168,6 +165,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setPdfFileSize(pdf.fileSize);
       setPdfDownloadAllowed(pdf.downloadAllowed);
       setPdfIsPublished(pdf.isPublished);
+      setPdfFileData(pdf.fileData || null);
+      setPdfFileName(pdf.fileName || '');
     } else {
       setEditingPdf(null);
       setPdfTitle('');
@@ -176,12 +175,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setPdfCourse('B.Tech / B.Sc');
       setPdfSemester('Semester 1');
       setPdfDescription('');
-      setPdfPageCount(36);
+      setPdfPageCount(24);
       setPdfFileSize('2.4 MB');
       setPdfDownloadAllowed(true);
       setPdfIsPublished(true);
+      setPdfFileData(null);
+      setPdfFileName('');
     }
     setIsPdfModalOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+      showToast('error', 'Invalid format. Only genuine PDF documents (.pdf) are permitted.');
+      return;
+    }
+
+    if (file.size > 25 * 1024 * 1024) {
+      showToast('error', 'File size exceeds 25 MB limit.');
+      return;
+    }
+
+    setIsUploadingFile(true);
+    const formattedSize =
+      file.size >= 1024 * 1024
+        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${Math.round(file.size / 1024)} KB`;
+
+    setPdfFileSize(formattedSize);
+    setPdfFileName(file.name);
+
+    if (!pdfTitle.trim()) {
+      setPdfTitle(file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '));
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPdfFileData(reader.result as string);
+      setIsUploadingFile(false);
+      showToast('success', `PDF file "${file.name}" loaded and ready to publish.`);
+    };
+    reader.onerror = () => {
+      setIsUploadingFile(false);
+      showToast('error', 'Failed to read uploaded PDF binary.');
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSavePdf = async (e: React.FormEvent) => {
@@ -196,60 +237,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     try {
       if (editingPdf) {
-        await ApiService.updatePdf(
-          {
-            ...editingPdf,
-            title: pdfTitle.trim(),
-            subjectId: pdfSubjectId,
-            subjectName: subName,
-            topic: pdfTopic.trim(),
-            course: pdfCourse.trim(),
-            semester: pdfSemester.trim(),
-            description: pdfDescription.trim(),
-            pageCount: Number(pdfPageCount),
-            fileSize: pdfFileSize,
-            downloadAllowed: pdfDownloadAllowed,
-            isPublished: pdfIsPublished,
-          },
-          currentUser.role
-        );
+        await ApiService.updatePdf({
+          ...editingPdf,
+          title: pdfTitle.trim(),
+          subjectId: pdfSubjectId,
+          subjectName: subName,
+          topic: pdfTopic.trim(),
+          course: pdfCourse.trim(),
+          semester: pdfSemester.trim(),
+          description: pdfDescription.trim(),
+          pageCount: Number(pdfPageCount),
+          fileSize: pdfFileSize,
+          downloadAllowed: pdfDownloadAllowed,
+          isPublished: pdfIsPublished,
+          fileData: pdfFileData || editingPdf.fileData,
+          fileName: pdfFileName || editingPdf.fileName,
+        });
         showToast('success', `PDF resource "${pdfTitle}" updated.`);
       } else {
-        await ApiService.createPdf(
-          {
-            title: pdfTitle.trim(),
-            subjectId: pdfSubjectId,
-            subjectName: subName,
-            topic: pdfTopic.trim(),
-            course: pdfCourse.trim(),
-            semester: pdfSemester.trim(),
-            description: pdfDescription.trim(),
-            pageCount: Number(pdfPageCount),
-            fileSize: pdfFileSize,
-            downloadAllowed: pdfDownloadAllowed,
-            isPublished: pdfIsPublished,
-            thumbnailStyle: 'standard',
-            contentPages: [
-              {
-                pageNumber: 1,
-                title: `${pdfTopic} — Fundamental Concepts`,
-                section: 'Unit 1: Foundations',
-                summary: pdfDescription || 'Introductory lecture notes covering critical principles.',
-                keyPoints: [
-                  'Comprehensive review of foundational definitions and axioms.',
-                  'Step-by-step mathematical proofs with parameter constraints.',
-                  'Practical engineering applications and modern use cases.',
-                ],
-                equationsOrCode: ['\\Phi(x, y) = \\int_{0}^{x} \\Psi(t) dt + C'],
-                problemExample: {
-                  question: 'Verify boundary conditions for the continuous distribution.',
-                  solution: 'Integrating across [0, ∞) yields 1, confirming normal normalization.',
-                },
+        await ApiService.createPdf({
+          title: pdfTitle.trim(),
+          subjectId: pdfSubjectId,
+          subjectName: subName,
+          topic: pdfTopic.trim(),
+          course: pdfCourse.trim(),
+          semester: pdfSemester.trim(),
+          description: pdfDescription.trim(),
+          pageCount: Number(pdfPageCount),
+          fileSize: pdfFileSize,
+          downloadAllowed: pdfDownloadAllowed,
+          isPublished: pdfIsPublished,
+          fileData: pdfFileData || undefined,
+          fileName: pdfFileName || undefined,
+          thumbnailStyle: 'standard',
+          contentPages: [
+            {
+              pageNumber: 1,
+              title: `${pdfTopic} — Fundamental Concepts`,
+              section: 'Unit 1: Foundations',
+              summary: pdfDescription || 'Introductory lecture notes covering critical principles.',
+              keyPoints: [
+                'Comprehensive review of foundational definitions and axioms.',
+                'Step-by-step mathematical proofs with parameter constraints.',
+                'Practical engineering applications and modern use cases.',
+              ],
+              equationsOrCode: ['\\Phi(x, y) = \\int_{0}^{x} \\Psi(t) dt + C'],
+              problemExample: {
+                question: 'Verify boundary conditions for the continuous distribution.',
+                solution: 'Integrating across [0, ∞) yields 1, confirming normal normalization.',
               },
-            ],
-          },
-          currentUser.role
-        );
+            },
+          ],
+        });
         showToast('success', `New PDF notes "${pdfTitle}" uploaded and published!`);
       }
       setIsPdfModalOpen(false);
@@ -264,10 +303,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!deleteConfirmation) return;
     try {
       if (deleteConfirmation.type === 'subject') {
-        await ApiService.deleteSubject(deleteConfirmation.id, currentUser.role);
+        await ApiService.deleteSubject(deleteConfirmation.id);
         showToast('success', `Subject removed successfully.`);
       } else {
-        await ApiService.deletePdf(deleteConfirmation.id, currentUser.role);
+        await ApiService.deletePdf(deleteConfirmation.id);
         showToast('success', `PDF resource removed.`);
       }
       setDeleteConfirmation(null);
@@ -725,6 +764,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <form onSubmit={handleSavePdf} className="mt-4 space-y-3.5 text-xs">
+              {/* Genuine PDF File Input */}
+              <div>
+                <label className="block font-bold text-[#102A56] mb-1">
+                  Upload PDF File {!editingPdf && <span className="text-red-500">*</span>}
+                </label>
+                <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#1677FF] transition-colors rounded-xl p-4 bg-[#F8FAFC] text-center">
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="flex flex-col items-center justify-center gap-1.5 pointer-events-none">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 text-[#1677FF] flex items-center justify-center">
+                      <Upload className="w-4 h-4" />
+                    </div>
+                    {pdfFileName ? (
+                      <div>
+                        <p className="font-bold text-[#102A56] text-xs flex items-center justify-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{pdfFileName}</span>
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-mono mt-0.5">{pdfFileSize} • Verified PDF</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-bold text-[#102A56] text-xs">Click or drag &amp; drop PDF note here</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Accepts genuine .pdf files up to 25 MB</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-[#102A56] mb-1">Document Title *</label>
                 <input
