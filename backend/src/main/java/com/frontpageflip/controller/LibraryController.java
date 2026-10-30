@@ -7,7 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/library")
+@RequestMapping({"/api/v1/library", "/api/library"})
 public class LibraryController {
 
     private final LibraryService libraryService;

@@ -14,7 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/pdfs")
+@RequestMapping({"/api/v1/pdfs", "/api/pdfs"})
 public class PdfController {
 
     private final PdfDocumentService pdfService;

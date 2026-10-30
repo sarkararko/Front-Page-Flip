@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/subjects")
+@RequestMapping({"/api/v1/subjects", "/api/subjects"})
 public class SubjectController {
 
     private final SubjectService subjectService;
