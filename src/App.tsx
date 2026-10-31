@@ -1,11 +1,8 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect } from 'react';
 import { User, Subject, PdfResource } from './types';
 import { ApiService } from './services/api';
+import { StorageService } from './services/storage';
+import { PresenceService } from './services/presence';
 import { Navbar } from './components/common/Navbar';
 import { AuthPage } from './components/auth/AuthPage';
 import { HomePage } from './components/home/HomePage';
@@ -29,6 +26,10 @@ export default function App() {
   const [userFavorites, setUserFavorites] = useState<string[]>([]);
   const [readLaterIds, setReadLaterIds] = useState<string[]>([]);
 
+  // Live student count from MySQL
+  const [activeStudentsCount, setActiveStudentsCount] = useState<number>(0);
+  const [registeredStudentsCount, setRegisteredStudentsCount] = useState<number>(0);
+
   // Navigation state
   const [activeTab, setActiveTab] = useState<string>('home');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -50,12 +51,87 @@ export default function App() {
     if (user) {
       setUserFavorites(ApiService.getUserFavorites(user.id));
       setReadLaterIds(ApiService.getUserReadLater(user.id));
+      // Sync favorites and read-later directly from backend MySQL
+      ApiService.syncLibraryFromBackend(user.id).then((synced) => {
+        if (synced) {
+          setUserFavorites(synced.favorites);
+          setReadLaterIds(synced.readLater);
+        }
+      });
     }
   };
 
+  // Process Google OAuth redirect callback on mount
   useEffect(() => {
+    try {
+      const hash = window.location.hash;
+      if (hash.includes('auth-success')) {
+        const query = hash.split('?')[1] || '';
+        const params = new URLSearchParams(query);
+        const token = params.get('token');
+        const email = params.get('email');
+        const name = params.get('name') || 'Student';
+        const userId = params.get('userId') || `usr_${Date.now()}`;
+
+        if (token && email) {
+          const studentUser: User = {
+            id: userId,
+            name,
+            email,
+            role: 'student', // STRICT: Google OAuth is always student
+            emailVerified: true,
+            createdAt: new Date().toISOString(),
+            provider: 'google',
+            avatar: name.slice(0, 2).toUpperCase(),
+          };
+          StorageService.addUser(studentUser);
+          StorageService.setCurrentUser(studentUser);
+          StorageService.setSessionToken(token);
+          setCurrentUser(studentUser);
+          window.history.replaceState(null, '', window.location.pathname);
+          loadData();
+          return;
+        }
+      } else if (hash.includes('auth-error')) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
     loadData();
   }, []);
+
+  // Poll live active & total student count from backend / MySQL
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCounts = async () => {
+      const [active, total] = await Promise.all([
+        PresenceService.getActiveStudentsCount(),
+        PresenceService.getRegisteredStudentCount(),
+      ]);
+      if (isMounted) {
+        setActiveStudentsCount(active);
+        setRegisteredStudentsCount(total);
+      }
+    };
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Periodic heartbeat while student is active on site
+  useEffect(() => {
+    if (currentUser?.role === 'student') {
+      PresenceService.sendHeartbeat();
+      const hbInterval = setInterval(() => {
+        PresenceService.sendHeartbeat();
+      }, 60000);
+      return () => clearInterval(hbInterval);
+    }
+  }, [currentUser]);
 
   // Update user-scoped data when user changes
   useEffect(() => {
@@ -69,16 +145,25 @@ export default function App() {
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
     loadData();
-    setActiveTab('home');
+    // Redirect according to role
+    if (user.role === 'admin') {
+      setActiveTab('admin');
+    } else {
+      setActiveTab('home');
+    }
   };
 
   const handleLogout = async () => {
+    if (currentUser?.role === 'student') {
+      await PresenceService.sendLogout();
+    }
     await ApiService.logout();
     setCurrentUser(null);
     setActivePdf(null);
     setActiveTab('home');
+    const updatedCount = await PresenceService.getActiveStudentsCount();
+    setActiveStudentsCount(updatedCount);
   };
-
 
   const handleToggleFavorite = (subjectId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -109,6 +194,12 @@ export default function App() {
   };
 
   const handleNavigate = (tab: string, extra?: any) => {
+    // Strict RBAC: Students cannot navigate to administrator console
+    if (tab === 'admin' && currentUser?.role !== 'admin') {
+      setActiveTab('home');
+      return;
+    }
+
     setActiveTab(tab);
     if (extra?.subTab) {
       setLibrarySubTab(extra.subTab);
@@ -155,10 +246,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans selection:bg-[#1677FF]/20 selection:text-[#102A56]">
-      {/* Top Navigation Bar matching reference */}
+      {/* Top Navigation Bar with Live MySQL Student Count */}
       <Navbar
         currentUser={currentUser}
         activeTab={activeTab}
+        activeStudentsCount={activeStudentsCount}
         onNavigate={handleNavigate}
         onOpenSearch={() => setIsSearchModalOpen(true)}
         onLogout={handleLogout}
@@ -174,6 +266,8 @@ export default function App() {
             userFavorites={userFavorites}
             readLaterIds={readLaterIds}
             readingProgressMap={readingProgressMap}
+            activeStudentsCount={activeStudentsCount}
+            registeredStudentsCount={registeredStudentsCount}
             onSearch={handleHeroSearch}
             onSelectSubject={handleSelectSubject}
             onViewAllSubjects={() => handleNavigate('subjects')}
@@ -250,13 +344,29 @@ export default function App() {
         )}
 
         {activeTab === 'admin' && (
-          <AdminDashboard
-            currentUser={currentUser}
-            subjects={subjects}
-            pdfs={pdfs}
-            onRefreshData={loadData}
-            onViewPdf={handleViewPdf}
-          />
+          currentUser.role === 'admin' ? (
+            <AdminDashboard
+              currentUser={currentUser}
+              subjects={subjects}
+              pdfs={pdfs}
+              onRefreshData={loadData}
+              onViewPdf={handleViewPdf}
+            />
+          ) : (
+            <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-2xl border border-red-200 text-center shadow-xs">
+              <h2 className="text-lg font-bold text-red-600">Access Restricted</h2>
+              <p className="text-xs text-slate-500 mt-2">
+                Administrator privileges are required to access this workspace.
+              </p>
+              <button
+                type="button"
+                onClick={() => handleNavigate('home')}
+                className="mt-4 px-4 py-2 bg-[#1677FF] text-white text-xs font-bold rounded-xl"
+              >
+                Return to Home
+              </button>
+            </div>
+          )
         )}
 
         {activeTab === 'profile' && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, BookOpen, FileText, Sparkles } from 'lucide-react';
 import { Subject, PdfResource, User } from '../../types';
 import { HeroSearch } from './HeroSearch';
 import { SubjectCard } from '../common/SubjectCard';
@@ -13,6 +13,8 @@ interface HomePageProps {
   userFavorites: string[];
   readLaterIds: string[];
   readingProgressMap?: Record<string, { lastPageRead: number; totalPages: number }>;
+  activeStudentsCount?: number;
+  registeredStudentsCount?: number;
   onSearch: (query: string) => void;
   onSelectSubject: (subject: Subject) => void;
   onViewAllSubjects: () => void;
@@ -30,6 +32,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   userFavorites,
   readLaterIds,
   readingProgressMap,
+  activeStudentsCount = 0,
+  registeredStudentsCount,
   onSearch,
   onSelectSubject,
   onViewAllSubjects,
@@ -47,8 +51,13 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      {/* 1. Hero Search Section matching fpf inside interface.png */}
-      <HeroSearch userName={currentUser.name} onSearch={onSearch} />
+      {/* 1. Hero Search Section with Live MySQL Student Count */}
+      <HeroSearch
+        userName={currentUser.name}
+        activeStudentsCount={activeStudentsCount}
+        registeredStudentsCount={registeredStudentsCount}
+        onSearch={onSearch}
+      />
 
       {/* 2. Explore Subjects Section */}
       <section className="mb-12">
@@ -86,10 +95,15 @@ export const HomePage: React.FC<HomePageProps> = ({
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-dashed border-[#CBD5E1] p-8 text-center">
-            <p className="text-sm font-semibold text-[#102A56]">No subjects available yet</p>
-            <p className="text-xs text-[#64748B] mt-1">
-              Study subjects will appear here once published by the administrator.
+          <div className="bg-gradient-to-br from-white via-[#FAFDFE] to-[#F0F7FF] rounded-3xl border border-[#DCE7F6] p-8 sm:p-10 text-center shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#1677FF]/15 to-[#0DB7A5]/20 text-[#1677FF] border border-[#1677FF]/20 flex items-center justify-center mx-auto mb-3.5 shadow-xs">
+              <BookOpen className="w-7 h-7 text-[#1677FF]" />
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-[#102A56]">
+              No study materials available yet
+            </h3>
+            <p className="text-xs sm:text-sm text-[#64748B] mt-1.5 max-w-md mx-auto font-medium">
+              New content will appear here once published by the admin.
             </p>
           </div>
         )}
@@ -132,10 +146,15 @@ export const HomePage: React.FC<HomePageProps> = ({
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-dashed border-[#CBD5E1] p-8 text-center">
-            <p className="text-sm font-semibold text-[#102A56]">No study materials published yet</p>
-            <p className="text-xs text-[#64748B] mt-1">
-              Genuine PDF notes will appear here once uploaded by the administrator.
+          <div className="bg-gradient-to-br from-white via-[#FAFDFE] to-[#F0F7FF] rounded-3xl border border-[#DCE7F6] p-8 sm:p-10 text-center shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0DB7A5]/15 to-[#4F46E5]/20 text-[#0DB7A5] border border-[#0DB7A5]/25 flex items-center justify-center mx-auto mb-3.5 shadow-xs">
+              <FileText className="w-7 h-7 text-[#0DB7A5]" />
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-[#102A56]">
+              No study materials available yet
+            </h3>
+            <p className="text-xs sm:text-sm text-[#64748B] mt-1.5 max-w-md mx-auto font-medium">
+              New content will appear here once published by the admin.
             </p>
           </div>
         )}

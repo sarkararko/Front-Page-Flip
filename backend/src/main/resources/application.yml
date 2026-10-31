@@ -1,12 +1,13 @@
 server:
   port: ${PORT:${SERVER_PORT:8080}}
+  forward-headers-strategy: framework
 
 spring:
   application:
     name: frontpageflip-backend
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:frontpageflip}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: ${DB_USERNAME:root}
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:defaultdb}?useSSL=${DB_USE_SSL:true}&requireSSL=${DB_REQUIRE_SSL:true}&verifyServerCertificate=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}}
+    username: ${DB_USERNAME:avnadmin}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
@@ -26,33 +27,45 @@ spring:
       max-file-size: 25MB
       max-request-size: 30MB
   mail:
-    host: ${SMTP_HOST:smtp.sendgrid.net}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
+    host: ${MAIL_HOST:${SMTP_HOST:smtp-relay.brevo.com}}
+    port: ${MAIL_PORT:${SMTP_PORT:587}}
+    username: ${MAIL_USERNAME:${SMTP_USERNAME:}}
+    password: ${MAIL_PASSWORD:${SMTP_PASSWORD:}}
+    default-encoding: UTF-8
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
+            required: true
+          connectiontimeout: 8000
+          timeout: 8000
+          writetimeout: 8000
 
-# Security & Application Settings
+# Security, Google OAuth & Application Settings
 app:
   jwt:
-    # Must be at least 256 bits (32 bytes) hex/base64 in production
     secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 Hours
   security:
-    # Strictly authorized creator email for Admin Role
-    creator-email: ${CREATOR_EMAIL:arkaparna.ds@gmail.com}
+    creator-email: ${CREATOR_EMAIL:${ADMIN_EMAIL:arkaparna.ds@gmail.com}}
+    admin-initial-password: ${ADMIN_INITIAL_PASSWORD:}
+  oauth:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+  mail:
+    from: ${MAIL_FROM:${SMTP_FROM:no-reply@frontpageflip.com}}
+    from-name: "Front-Page Flip"
+    frontend-url: ${FRONTEND_URL:https://frontpageflip.vercel.app}
   storage:
     type: ${STORAGE_TYPE:local} # local or s3
     upload-dir: ${STORAGE_DIR:./uploads/pdfs}
     s3-bucket: ${S3_BUCKET:}
     s3-region: ${AWS_REGION:us-east-1}
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://frontpageflip.vercel.app,https://*.vercel.app,https://frontpageflip-backend.onrender.com,http://localhost:3000,http://localhost:5173}
 
 management:
   endpoints:

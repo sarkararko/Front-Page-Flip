@@ -2,7 +2,25 @@ import { User, Subject, PdfResource, RecentlyViewedItem } from '../types';
 import { StorageService, AUTHORIZED_CREATOR_EMAIL, hashPassword } from './storage';
 import { PdfFileStore } from './pdfFileStore';
 
-const API_BASE = '/api/v1';
+/**
+ * Returns the backend root URL (e.g. https://frontpageflip-backend.onrender.com)
+ * Automatically routes to Render backend when deployed on Vercel (or via VITE_API_URL).
+ */
+export function getBackendBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const custom = (import.meta as any).env?.VITE_API_URL;
+    if (custom) return custom.replace(/\/+$/, '');
+    if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('frontpageflip')) {
+      return 'https://frontpageflip-backend.onrender.com';
+    }
+  }
+  return '';
+}
+
+export function getApiBaseUrl(): string {
+  const base = getBackendBaseUrl();
+  return base ? `${base}/api/v1` : '/api/v1';
+}
 
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T | null> {
   const token = StorageService.getSessionToken();
@@ -17,8 +35,11 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     headers['Content-Type'] = 'application/json';
   }
 
+  const apiBase = getApiBaseUrl();
+  const url = endpoint.startsWith('http') ? endpoint : `${apiBase}${endpoint}`;
+
   try {
-    const res = await fetch(`${API_BASE}${endpoint}`, {
+    const res = await fetch(url, {
       ...options,
       headers,
     });
@@ -80,23 +101,8 @@ export const ApiService = {
     let user = users.find((u) => u.email.toLowerCase() === cleanEmail);
 
     if (!user) {
-      // First-time student visitor auto-enrolled as student only
-      const initials = cleanEmail
-        .split('@')[0]
-        .slice(0, 2)
-        .toUpperCase();
-      user = {
-        id: `usr-${Date.now()}`,
-        name: cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-        email: cleanEmail,
-        role: 'student', // STRICT: Student login can only create/yield student role
-        avatar: initials,
-        emailVerified: true,
-        createdAt: new Date().toISOString(),
-        provider: 'email',
-        passwordHash: password ? await hashPassword(password) : undefined,
-      };
-      StorageService.addUser(user);
+      // Reject unknown user login
+      throw new Error('Invalid email or password. Please verify your credentials or sign up.');
     } else {
       // Ensure student login NEVER grants admin role to unauthorized users
       if (user.role === 'admin' && cleanEmail !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
@@ -108,6 +114,10 @@ export const ApiService = {
         if (computed !== user.passwordHash) {
           throw new Error('Invalid email or password. Please verify your credentials.');
         }
+      }
+      // STRICT: Allow student login only after email verification
+      if (!user.emailVerified) {
+        throw new Error('Your email address is not verified yet. Please enter the verification code sent to your email.');
       }
     }
 
@@ -131,10 +141,9 @@ export const ApiService = {
     const cleanEmail = email.toLowerCase().trim();
 
     // STRICT: Only the designated creator account is permitted as administrator
+    // Return generic error without disclosing whether the entered email exists or is an admin
     if (cleanEmail !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
-      throw new Error(
-        `403 Forbidden: Access denied. Only the authorized creator account (${AUTHORIZED_CREATOR_EMAIL}) has permission to access the Administrator Portal.`
-      );
+      throw new Error('Invalid email or password. Please verify your credentials.');
     }
 
     // Attempt real backend call first
@@ -188,7 +197,7 @@ export const ApiService = {
       }
       const hashed = await hashPassword(password);
       if (hashed !== adminUser.passwordHash) {
-        throw new Error('Invalid administrator password. Access denied.');
+        throw new Error('Invalid email or password. Please verify your credentials.');
       }
     } else if (password) {
       // First-time administrator password setup
@@ -221,16 +230,23 @@ export const ApiService = {
     return !!(adminUser && adminUser.passwordHash);
   },
 
-  // --- SOCIAL LOGIN (Student role only) ---
+  // --- SOCIAL LOGIN (Student role strictly enforced) ---
   async socialLogin(provider: 'google' | 'github'): Promise<{ user: User; token: string }> {
+    if (provider === 'google' && typeof window !== 'undefined') {
+      const backendRoot = getBackendBaseUrl() || 'https://frontpageflip-backend.onrender.com';
+      // In live production, route directly to Spring Boot Google OAuth 2.0 / OpenID Connect
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        window.location.href = `${backendRoot}/oauth2/authorization/google`;
+        return new Promise(() => {}); // Wait for redirect
+      }
+    }
+
     const isGoogle = provider === 'google';
-    const email = isGoogle ? 'arkaparna.ds@gmail.com' : 'arkaparna.dev@github.com';
-    const name = isGoogle ? 'Arkoparno D.' : 'Arkoparno Dev';
-    const avatar = isGoogle ? 'AD' : 'AD';
+    const email = isGoogle ? 'student.user@example.com' : 'student.dev@github.com';
+    const name = isGoogle ? 'Student User' : 'Student Dev';
+    const avatar = 'ST';
 
-    // If logging in via social with the creator email, respect their established role
-    const isCreator = email.toLowerCase() === AUTHORIZED_CREATOR_EMAIL.toLowerCase();
-
+    // STRICT: Social login can NEVER authenticate or grant admin role
     const users = StorageService.getUsers();
     let user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
 
@@ -239,7 +255,7 @@ export const ApiService = {
         id: `usr-${provider}-${Date.now()}`,
         name,
         email,
-        role: isCreator ? 'admin' : 'student',
+        role: 'student', // Mandatory student role
         avatar,
         emailVerified: true,
         createdAt: new Date().toISOString(),
@@ -259,8 +275,39 @@ export const ApiService = {
     name: string,
     email: string,
     password?: string
-  ): Promise<{ user: User; requiresVerification: boolean; verificationCode: string }> {
+  ): Promise<{ user: User; requiresVerification: boolean; verificationCode?: string; message?: string }> {
     const cleanEmail = email.toLowerCase().trim();
+
+    // Attempt real backend call first
+    try {
+      const backendRes = await apiFetch<any>('/auth/student/register', {
+        method: 'POST',
+        body: JSON.stringify({ name: name.trim(), email: cleanEmail, password: password || '' }),
+      });
+      if (backendRes) {
+        const newUser: User = {
+          id: backendRes.user?.id || `usr-${Date.now()}`,
+          name: backendRes.user?.name || name.trim(),
+          email: cleanEmail,
+          role: 'student',
+          avatar: name.slice(0, 2).toUpperCase(),
+          emailVerified: false,
+          createdAt: new Date().toISOString(),
+          provider: 'email',
+        };
+        StorageService.addUser(newUser);
+        return {
+          user: newUser,
+          requiresVerification: true,
+          message: backendRes.message || 'Registration successful. A 6-digit verification code has been dispatched to your email.',
+        };
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
+    }
+
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     StorageService.saveVerificationCode(cleanEmail, verificationCode);
 
@@ -291,17 +338,50 @@ export const ApiService = {
       user: newUser,
       requiresVerification: true,
       verificationCode,
+      message: `A 6-digit verification code has been dispatched to ${cleanEmail}`,
     };
   },
 
   async verifyEmail(email: string, code: string): Promise<{ success: boolean; message: string; user?: User }> {
-    const result = StorageService.verifyCode(email, code);
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Attempt real backend call first
+    try {
+      const backendRes = await apiFetch<any>('/auth/verify-email', {
+        method: 'POST',
+        body: JSON.stringify({ email: cleanEmail, token: code.trim() }),
+      });
+      if (backendRes && backendRes.user) {
+        const verifiedUser: User = {
+          id: backendRes.user.id,
+          name: backendRes.user.name,
+          email: backendRes.user.email,
+          role: 'student',
+          emailVerified: true,
+          createdAt: new Date().toISOString(),
+          provider: 'email',
+          avatar: backendRes.user.name.slice(0, 2).toUpperCase(),
+        };
+        if (backendRes.token) {
+          StorageService.setSessionToken(backendRes.token);
+        }
+        StorageService.updateUser(verifiedUser);
+        StorageService.setCurrentUser(verifiedUser);
+        return { success: true, message: backendRes.message || 'Email verified successfully!', user: verifiedUser };
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
+    }
+
+    const result = StorageService.verifyCode(cleanEmail, code);
     if (!result.success) {
       return result;
     }
 
     const users = StorageService.getUsers();
-    const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim());
+    const user = users.find((u) => u.email.toLowerCase() === cleanEmail);
     if (user) {
       user.emailVerified = true;
       StorageService.updateUser(user);
@@ -312,14 +392,88 @@ export const ApiService = {
     return { success: false, message: 'User record not found.' };
   },
 
-  async resendVerificationCode(email: string): Promise<{ success: boolean; code: string; message: string }> {
+  async resendVerificationCode(email: string): Promise<{ success: boolean; code?: string; message: string }> {
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Attempt real backend call first
+    try {
+      const backendRes = await apiFetch<any>('/auth/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email: cleanEmail }),
+      });
+      if (backendRes) {
+        return {
+          success: true,
+          message: backendRes.message || `If an unverified account exists, a new verification code has been dispatched to ${cleanEmail}.`,
+        };
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
+    }
+
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    StorageService.saveVerificationCode(email, code);
+    StorageService.saveVerificationCode(cleanEmail, code);
     return {
       success: true,
       code,
-      message: `A new 6-digit verification code has been dispatched to ${email}.`,
+      message: `A new 6-digit verification code has been dispatched to ${cleanEmail}.`,
     };
+  },
+
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Attempt real backend call first
+    try {
+      const backendRes = await apiFetch<any>('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: cleanEmail }),
+      });
+      if (backendRes) {
+        return {
+          success: true,
+          message: backendRes.message || 'If an account exists for this email address, password recovery instructions have been dispatched.',
+        };
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    StorageService.savePasswordResetCode(cleanEmail, code);
+    return {
+      success: true,
+      message: `If an account exists for ${cleanEmail}, a 6-digit password recovery code has been dispatched.`,
+    };
+  },
+
+  async resetPassword(email: string, token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Attempt real backend call first
+    try {
+      const backendRes = await apiFetch<any>('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: cleanEmail, token: token.trim(), newPassword }),
+      });
+      if (backendRes) {
+        return {
+          success: true,
+          message: backendRes.message || 'Password has been reset successfully. You can now log in with your new password.',
+        };
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
+    }
+
+    const hashed = await hashPassword(newPassword);
+    return StorageService.resetPasswordWithCode(cleanEmail, token.trim(), hashed);
   },
 
   async logout(): Promise<void> {
@@ -572,22 +726,62 @@ export const ApiService = {
     StorageService.deletePdf(id);
   },
 
-  // --- USER FAVORITES ---
+  // --- USER FAVORITES (MySQL & Local Sync) ---
   getUserFavorites(userId: string): string[] {
     return StorageService.getUserFavorites(userId);
   },
 
-  toggleFavorite(userId: string, subjectId: string): boolean {
-    return StorageService.toggleFavorite(userId, subjectId);
+  async toggleFavorite(userId: string, subjectId: string): Promise<boolean> {
+    const isFav = StorageService.toggleFavorite(userId, subjectId);
+    try {
+      await apiFetch<any>(`/library/favorites/${subjectId}`, {
+        method: 'POST',
+      });
+    } catch {
+      // Local fallback
+    }
+    return isFav;
   },
 
-  // --- READ LATER ---
+  // --- READ LATER (MySQL & Local Sync) ---
   getUserReadLater(userId: string): string[] {
     return StorageService.getUserReadLater(userId);
   },
 
-  toggleReadLater(userId: string, pdfId: string): boolean {
-    return StorageService.toggleReadLater(userId, pdfId);
+  async toggleReadLater(userId: string, pdfId: string): Promise<boolean> {
+    const isSaved = StorageService.toggleReadLater(userId, pdfId);
+    try {
+      await apiFetch<any>(`/library/read-later/${pdfId}`, {
+        method: 'POST',
+      });
+    } catch {
+      // Local fallback
+    }
+    return isSaved;
+  },
+
+  // --- LIBRARY SYNCHRONIZATION FROM MYSQL ---
+  async syncLibraryFromBackend(userId: string): Promise<{ favorites: string[]; readLater: string[] } | null> {
+    try {
+      const data = await apiFetch<any>('/library');
+      if (data) {
+        if (Array.isArray(data.favorites)) {
+          const favIds = data.favorites.map((f: any) => (typeof f === 'string' ? f : f.id || f.subjectId));
+          StorageService.setUserFavorites(userId, favIds);
+        }
+        if (Array.isArray(data.readLater)) {
+          const rlIds = data.readLater.map((r: any) => (typeof r === 'string' ? r : r.id || r.pdfId));
+          StorageService.setUserReadLater(userId, rlIds);
+        }
+        return {
+          favorites: StorageService.getUserFavorites(userId),
+          readLater: StorageService.getUserReadLater(userId),
+        };
+      }
+    } catch {
+      // Fallback
+    }
+    return null;
   },
 
   // --- RECENTLY VIEWED ---
@@ -597,5 +791,13 @@ export const ApiService = {
 
   recordRecentlyViewed(userId: string, pdfId: string, pageNumber: number, totalPages: number): void {
     StorageService.recordRecentlyViewed(userId, pdfId, pageNumber, totalPages);
+    try {
+      apiFetch<any>(`/library/progress/${pdfId}`, {
+        method: 'POST',
+        body: JSON.stringify({ currentPage: pageNumber, totalPages }),
+      }).catch(() => {});
+    } catch {
+      // Ignore background progress errors
+    }
   },
 };

@@ -9,5 +9,7 @@ import java.util.Optional;
 @Repository
 public interface VerificationTokenRepository extends JpaRepository<VerificationToken, String> {
     Optional<VerificationToken> findByToken(String token);
+    Optional<VerificationToken> findByTokenAndUsedAtIsNull(String token);
     Optional<VerificationToken> findByUserIdAndUsedAtIsNull(String userId);
+    Optional<VerificationToken> findTopByUserIdAndUsedAtIsNullOrderByCreatedAtDesc(String userId);
 }

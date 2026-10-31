@@ -20,6 +20,7 @@ import { User } from '../../types';
 interface NavbarProps {
   currentUser: User | null;
   activeTab: string;
+  activeStudentsCount?: number;
   onNavigate: (tab: string, extra?: any) => void;
   onOpenSearch: () => void;
   onLogout: () => void;
@@ -28,6 +29,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   activeTab,
+  activeStudentsCount = 0,
   onNavigate,
   onOpenSearch,
   onLogout,
@@ -100,7 +102,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Navigation Controls */}
-          <div className="flex items-center gap-3 sm:gap-5 lg:gap-6 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-4 lg:gap-5 shrink-0">
+            {/* Live Active Students Count Badge */}
+            <div
+              title="Students online and active in the last 5 minutes (from MySQL database)"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 text-xs font-bold tracking-wide shadow-2xs select-none transition-all"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-semibold text-[11px] sm:text-xs">
+                {activeStudentsCount} {activeStudentsCount === 1 ? 'Student' : 'Students'} Online
+              </span>
+            </div>
+
             {/* Search Button */}
             <button
               type="button"

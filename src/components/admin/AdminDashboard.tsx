@@ -558,6 +558,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </tbody>
             </table>
           </div>
+          {subjects.length === 0 && (
+            <div className="p-12 text-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#1677FF] flex items-center justify-center mx-auto mb-3">
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <h4 className="font-bold text-[#102A56] text-sm">No subjects created yet</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                All study subjects are created and maintained here. Click "Create Subject" to publish your first academic subject.
+              </p>
+              <button
+                type="button"
+                onClick={() => handleOpenSubjectModal()}
+                className="mt-4 px-4 py-2 bg-[#1677FF] text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create First Subject</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -646,6 +665,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </tbody>
             </table>
           </div>
+          {pdfs.length === 0 && (
+            <div className="p-12 text-center">
+              <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-3">
+                <FileText className="w-6 h-6" />
+              </div>
+              <h4 className="font-bold text-[#102A56] text-sm">No educational PDFs published yet</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                Upload syllabus notes, lecture handouts, and exam guides. Students will see them once published.
+              </p>
+              <button
+                type="button"
+                onClick={() => handleOpenPdfModal()}
+                className="mt-4 px-4 py-2 bg-[#1677FF] text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-xs"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload First PDF Note</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

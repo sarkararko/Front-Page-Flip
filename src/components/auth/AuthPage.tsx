@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Mail,
   Lock,
@@ -7,11 +7,13 @@ import {
   User as UserIcon,
   CheckCircle2,
   AlertCircle,
-  GraduationCap,
   ShieldCheck,
+  GraduationCap,
+  RotateCw,
+  KeyRound,
+  ArrowLeft,
 } from 'lucide-react';
 import { ApiService } from '../../services/api';
-import { AUTHORIZED_CREATOR_EMAIL } from '../../services/storage';
 import { User } from '../../types';
 
 export const USER_ARTWORK_IMAGE_URL =
@@ -23,7 +25,7 @@ interface AuthPageProps {
 }
 
 type RoleTab = 'student' | 'admin';
-type StudentMode = 'login' | 'register' | 'verify' | 'forgot';
+type StudentMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   // Option A (Student) vs Option B (Admin)
@@ -39,19 +41,68 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Admin form fields
-  const [adminEmail, setAdminEmail] = useState(AUTHORIZED_CREATOR_EMAIL);
+  const [adminEmail, setAdminEmail] = useState('arkaparna.ds@gmail.com');
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   // Verification state (6 digits)
   const [verifyDigits, setVerifyDigits] = useState(['', '', '', '', '', '']);
   const [pendingEmail, setPendingEmail] = useState('');
-  const [demoCodeHelper, setDemoCodeHelper] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Password reset fields
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Status feedback
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Read URL query parameters on mount (e.g. from 1-click email links)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const roleParam = params.get('role');
+      const modeParam = params.get('mode');
+      const emailParam = params.get('email');
+      const codeParam = params.get('code') || params.get('token');
+
+      if (roleParam === 'admin') {
+        setActiveRole('admin');
+      }
+
+      if (emailParam) {
+        setPendingEmail(emailParam);
+        setStudentEmail(emailParam);
+      }
+
+      if (modeParam === 'verify' || modeParam === 'verification') {
+        setStudentMode('verify');
+        if (codeParam && codeParam.length === 6) {
+          setVerifyDigits(codeParam.split(''));
+        }
+      } else if (modeParam === 'reset') {
+        setStudentMode('reset');
+        if (codeParam) {
+          setResetToken(codeParam);
+        }
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
+  }, []);
+
+  // Cooldown countdown timer for resending verification email
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // 1. Social Login
   const handleSocialLogin = async (provider: 'google' | 'github') => {
@@ -70,17 +121,25 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   // 2. Student Login
   const handleStudentLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentEmail.trim()) {
+    const cleanEmail = studentEmail.trim();
+    if (!cleanEmail) {
       setError('Please enter your email address.');
       return;
     }
     try {
       setLoading(true);
       setError(null);
-      const res = await ApiService.studentLogin(studentEmail.trim(), studentPassword);
+      const res = await ApiService.studentLogin(cleanEmail, studentPassword);
       onSuccess(res.user);
     } catch (err: any) {
-      setError(err?.message || 'Failed to authenticate student account.');
+      const msg = err?.message || 'Failed to authenticate student account.';
+      if (msg.toLowerCase().includes('not verified') || msg.toLowerCase().includes('verification')) {
+        setPendingEmail(cleanEmail);
+        setStudentMode('verify');
+        setError(msg);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -107,9 +166,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
       setError(null);
       const res = await ApiService.register(fullName.trim(), studentEmail.trim(), studentPassword);
       setPendingEmail(studentEmail.trim());
-      setDemoCodeHelper(res.verificationCode);
       setStudentMode('verify');
-      setSuccessMessage(`A 6-digit verification code has been dispatched to ${studentEmail.trim()}`);
+      setResendCooldown(60);
+      setSuccessMessage(
+        res.message || `A 6-digit verification code has been dispatched to ${studentEmail.trim()} via Brevo.`
+      );
     } catch (err: any) {
       setError(err?.message || 'Registration failed.');
     } finally {
@@ -117,15 +178,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
     }
   };
 
-  // 4. Admin Login (Exclusively Creator: arkaparna.ds@gmail.com)
+  // 4. Admin Login
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanEmail = adminEmail.trim().toLowerCase();
 
-    if (cleanEmail !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
-      setError(
-        `403 Forbidden: Access denied. Only the authorized creator account (${AUTHORIZED_CREATOR_EMAIL}) has administrator privileges.`
-      );
+    if (!cleanEmail || !adminPassword) {
+      setError('Please enter both email and passphrase.');
       return;
     }
 
@@ -134,8 +193,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
       setError(null);
       const res = await ApiService.adminLogin(cleanEmail, adminPassword);
       onSuccess(res.user);
-    } catch (err: any) {
-      setError(err?.message || 'Administrator authentication failed. Verify passphrase.');
+    } catch {
+      setError('Invalid email or password. Please verify your credentials.');
     } finally {
       setLoading(false);
     }
@@ -179,20 +238,72 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
         setError(res.message);
       }
     } catch (err: any) {
-      setError(err?.message || 'Verification failed.');
+      setError(err?.message || 'Verification failed. Please check the code and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleResendCode = async () => {
+    if (resendCooldown > 0) return;
     try {
       setLoading(true);
+      setError(null);
       const res = await ApiService.resendVerificationCode(pendingEmail);
-      setDemoCodeHelper(res.code);
+      setResendCooldown(60);
       setSuccessMessage(res.message);
     } catch (err: any) {
-      setError(err?.message || 'Failed to resend code.');
+      setError(err?.message || 'Failed to resend verification email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 6. Forgot Password
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingEmail.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await ApiService.forgotPassword(pendingEmail.trim());
+      setSuccessMessage(res.message);
+      setStudentMode('reset');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to process password recovery.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 7. Reset Password
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetToken.trim()) {
+      setError('Please enter the 6-digit recovery code from your email.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('New password must contain at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await ApiService.resetPassword(pendingEmail.trim(), resetToken.trim(), newPassword);
+      setSuccessMessage(res.message);
+      setStudentEmail(pendingEmail);
+      setStudentPassword('');
+      setStudentMode('login');
+    } catch (err: any) {
+      setError(err?.message || 'Password reset failed.');
     } finally {
       setLoading(false);
     }
@@ -204,7 +315,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
       <div className="w-full max-w-[880px] lg:h-[570px] xl:h-[590px] bg-white rounded-3xl shadow-[0_16px_48px_rgba(16,42,86,0.10)] border border-slate-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-0 my-auto items-stretch">
         
         {/* ================= 1. LEFT BOX: DEDICATED ARTWORK CARD ================= */}
-        {/* Seamlessly connected to right box with zero gap, edge-to-edge artwork */}
         <div className="w-full h-full min-h-[380px] sm:min-h-[460px] lg:min-h-0 bg-[#F7FAFD] overflow-hidden relative p-0 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-slate-100">
           <img
             src={USER_ARTWORK_IMAGE_URL}
@@ -219,22 +329,22 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
         </div>
 
         {/* ================= 2. RIGHT BOX: AUTHENTICATION CARD ================= */}
-        {/* Aligned together with left box, compact height to fit screen comfortably without scrolling */}
-        <div className="w-full h-full min-h-[480px] lg:min-h-0 bg-white p-5 sm:p-6 lg:p-7 flex flex-col justify-center overflow-y-auto">
-          <div className="w-full max-w-[370px] mx-auto my-auto flex flex-col justify-center py-1 sm:py-2">
+        <div className="w-full h-full min-h-[480px] lg:min-h-0 bg-white p-6 sm:p-7 lg:p-8 flex flex-col justify-center overflow-y-auto">
+          <div className="w-full max-w-[345px] mx-auto my-auto flex flex-col justify-center py-1 sm:py-2">
             
-            {/* BIG "Welcome back!" HEADING AT TOP */}
-            <div className="text-center mb-4 sm:mb-4.5">
-              <h2 className="text-[26px] sm:text-[30px] font-black text-[#0F264C] tracking-tight leading-tight">
+            {/* TOP HEADING */}
+            <div className="text-center mb-3 sm:mb-4">
+              <h2 className="text-[25px] sm:text-[27px] font-black text-[#0F264C] tracking-tight leading-snug">
                 Welcome back!
               </h2>
-              <p className="text-sm text-[#475569] mt-1 font-medium">
+              <p className="text-xs sm:text-[13px] text-[#64748B] mt-1 font-normal">
                 Sign in to continue your learning journey.
               </p>
             </div>
 
-            {/* EXACTLY TWO OPTIONS: Login as Student and Login as Admin */}
-            <div className="flex rounded-xl bg-slate-100 p-1 mb-3.5 border border-slate-200/70">
+            {/* SWITCHING TABS: [ Login as Student ] [ Login as Admin ] as in Image 2 & 3 */}
+            <div className="p-1 bg-[#F1F5F9] border border-slate-200/90 rounded-2xl grid grid-cols-2 gap-1 mb-3.5">
+              {/* Login as Student: Active in Image 3 (white background, blue text/icon), Inactive in Image 2 (transparent, dark text/icon) */}
               <button
                 type="button"
                 onClick={() => {
@@ -242,62 +352,154 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                   setError(null);
                   setSuccessMessage(null);
                 }}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-[13px] sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all ${
+                className={`py-2 px-2.5 rounded-xl text-xs sm:text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeRole === 'student'
-                    ? 'bg-white text-[#1677FF] shadow-2xs border border-slate-200/60'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white text-[#0066FF] shadow-xs border border-slate-200/70'
+                    : 'bg-transparent text-[#234268] hover:text-[#0F264C]'
                 }`}
               >
-                <GraduationCap className="w-4 h-4" />
-                <span>Login as Student</span>
+                <GraduationCap className={`w-4 h-4 shrink-0 ${activeRole === 'student' ? 'text-[#0066FF]' : 'text-[#234268]'}`} />
+                <span className="tracking-normal">Login as Student</span>
               </button>
 
+              {/* Login as Admin: Active in Image 2 (dark navy background, white text, green icon), Inactive in Image 3 (transparent, dark text, green icon) */}
               <button
                 type="button"
                 onClick={() => {
                   setActiveRole('admin');
                   setError(null);
                   setSuccessMessage(null);
+                  if (!adminEmail) setAdminEmail('arkaparna.ds@gmail.com');
                 }}
-                className={`flex-1 py-1.5 px-2 rounded-lg text-[13px] sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all ${
+                className={`py-2 px-2.5 rounded-xl text-xs sm:text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeRole === 'admin'
-                    ? 'bg-[#102A56] text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-[#0B2548] text-white shadow-xs border border-[#0B2548]'
+                    : 'bg-transparent text-[#234268] hover:text-[#0F264C]'
                 }`}
               >
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Login as Admin</span>
+                <ShieldCheck className="w-4 h-4 shrink-0 text-[#00C48C]" />
+                <span className="tracking-normal">Login as Admin</span>
               </button>
             </div>
 
             {/* Error or Success Feedback Banners */}
             {error && (
-              <div className="mb-3 p-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs sm:text-[13px] font-medium flex items-center gap-2">
+              <div className="mb-2.5 p-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-                <span className="leading-tight">{error}</span>
+                <span className="leading-snug">{error}</span>
               </div>
             )}
 
             {successMessage && (
-              <div className="mb-3 p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs sm:text-[13px] font-medium flex items-center gap-2">
+              <div className="mb-2.5 p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span className="leading-tight">{successMessage}</span>
+                <span className="leading-snug">{successMessage}</span>
               </div>
             )}
 
-            {/* ================= 1. LOGIN AS STUDENT (Everything Currently Present) ================= */}
+            {/* ================= A. LOGIN AS ADMIN TAB ================= */}
+            {activeRole === 'admin' && (
+              <div className="space-y-2.5">
+                {/* Authorized Creator Portal Badge */}
+                <div className="text-center">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-xs font-semibold">
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Authorized Creator Portal</span>
+                  </div>
+                </div>
+
+                {/* Strict Creator Access Alert */}
+                <div className="p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl text-left">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 mb-0.5">
+                    <Lock className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Strict Creator Access</span>
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed font-normal">
+                    Restricted strictly to <span className="font-bold text-amber-950">arkaparna.ds@gmail.com</span>. Public administrator registration is permanently disabled.
+                  </p>
+                </div>
+
+                <form onSubmit={handleAdminLogin} className="space-y-2.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Administrator Email
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        required
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        placeholder="arkaparna.ds@gmail.com"
+                        className="w-full pl-9 pr-3 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] focus:ring-1 focus:ring-[#1677FF]/20 outline-hidden font-normal text-[#0F172A] placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Administrator Passphrase
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showAdminPassword ? 'text' : 'password'}
+                        required
+                        value={adminPassword}
+                        onChange={(e) => setAdminPassword(e.target.value)}
+                        placeholder="Enter master passphrase"
+                        className="w-full pl-9 pr-9 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] focus:ring-1 focus:ring-[#1677FF]/20 outline-hidden font-normal text-[#0F172A] placeholder:text-slate-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminPassword(!showAdminPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full mt-2 py-2.5 bg-[#0B2548] hover:bg-[#071931] text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-xs disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>{loading ? 'Authenticating...' : 'Sign In as Administrator'}</span>
+                  </button>
+                </form>
+
+                {/* Auto-fill demo passphrase link */}
+                <div className="text-center pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdminEmail('arkaparna.ds@gmail.com');
+                      setAdminPassword('Admin123!');
+                    }}
+                    className="text-xs text-[#7C3AED] hover:text-[#6D28D9] hover:underline font-semibold cursor-pointer"
+                  >
+                    Auto-fill Creator Demo Passphrase
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ================= B. LOGIN AS STUDENT TAB ================= */}
             {activeRole === 'student' && (
               <>
+                {/* 1A. STUDENT LOGIN (Matching Image 1) */}
                 {studentMode === 'login' && (
-                  <>
+                  <div className="space-y-2.5">
                     {/* Social Login Buttons */}
-                    <div className="space-y-2 mb-3">
-                      {/* Continue with Google */}
+                    <div className="space-y-2">
                       <button
                         type="button"
                         onClick={() => handleSocialLogin('google')}
                         disabled={loading}
-                        className="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-[#CBD5E1] rounded-xl text-xs sm:text-[13px] font-semibold text-[#152238] flex items-center justify-center gap-2.5 transition-colors shadow-2xs"
+                        className="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-[13px] font-medium text-slate-700 flex items-center justify-center gap-2 transition-colors shadow-2xs cursor-pointer"
                       >
                         <svg className="w-4 h-4" viewBox="0 0 24 24">
                           <path
@@ -320,12 +522,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                         <span>Continue with Google</span>
                       </button>
 
-                      {/* Continue with GitHub */}
                       <button
                         type="button"
                         onClick={() => handleSocialLogin('github')}
                         disabled={loading}
-                        className="w-full py-2 px-3 bg-[#101C34] hover:bg-[#0A1324] text-white rounded-xl text-xs sm:text-[13px] font-semibold flex items-center justify-center gap-2.5 transition-colors shadow-2xs"
+                        className="w-full py-2 px-3 bg-[#101C34] hover:bg-[#0A1324] text-white rounded-xl text-xs sm:text-[13px] font-medium flex items-center justify-center gap-2 transition-colors shadow-2xs cursor-pointer"
                       >
                         <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                           <path
@@ -339,19 +540,19 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                     </div>
 
                     {/* OR Divider */}
-                    <div className="relative my-2.5 text-center">
+                    <div className="relative my-2 text-center">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-[#E2E8F0]" />
+                        <div className="w-full border-t border-slate-200" />
                       </div>
-                      <span className="relative px-2.5 bg-white text-xs text-[#64748B] font-bold tracking-wider uppercase">
+                      <span className="relative px-2.5 bg-white text-[11px] text-slate-400 font-semibold tracking-wider uppercase">
                         OR
                       </span>
                     </div>
 
                     {/* Email & Password Form */}
-                    <form onSubmit={handleStudentLogin} className="space-y-2.5">
+                    <form onSubmit={handleStudentLogin} className="space-y-2">
                       <div>
-                        <label className="block text-[13px] font-bold text-[#0F264C] mb-0.5">
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                           Email address
                         </label>
                         <div className="relative">
@@ -362,40 +563,43 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                             value={studentEmail}
                             onChange={(e) => setStudentEmail(e.target.value)}
                             placeholder="Enter your email address"
-                            className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#CBD5E1] rounded-xl focus:border-[#1677FF] focus:ring-2 focus:ring-[#1677FF]/20 outline-hidden font-medium text-[#0F172A] placeholder:text-slate-400"
+                            className="w-full pl-9 pr-3 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] focus:ring-1 focus:ring-[#1677FF]/20 outline-hidden font-normal text-[#0F172A] placeholder:text-slate-400"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-[13px] font-bold text-[#0F264C] mb-0.5">
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                           Password
                         </label>
                         <div className="relative">
                           <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
                             type={showStudentPassword ? 'text' : 'password'}
+                            required
                             value={studentPassword}
                             onChange={(e) => setStudentPassword(e.target.value)}
                             placeholder="Enter your password"
-                            className="w-full pl-9 pr-9 py-1.5 text-xs sm:text-sm bg-white border border-[#CBD5E1] rounded-xl focus:border-[#1677FF] focus:ring-2 focus:ring-[#1677FF]/20 outline-hidden font-medium text-[#0F172A] placeholder:text-slate-400"
+                            className="w-full pl-9 pr-9 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] focus:ring-1 focus:ring-[#1677FF]/20 outline-hidden font-normal text-[#0F172A] placeholder:text-slate-400"
                           />
                           <button
                             type="button"
                             onClick={() => setShowStudentPassword(!showStudentPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                           >
-                            {showStudentPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            {showStudentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
-                        <div className="mt-0.5 text-right">
+                        <div className="mt-1 text-right">
                           <button
                             type="button"
                             onClick={() => {
                               setPendingEmail(studentEmail);
+                              setError(null);
+                              setSuccessMessage(null);
                               setStudentMode('forgot');
                             }}
-                            className="text-xs text-[#1677FF] hover:underline font-semibold"
+                            className="text-xs text-[#1677FF] hover:underline font-medium cursor-pointer"
                           >
                             Forgot password?
                           </button>
@@ -405,152 +609,149 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full mt-1 py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-bold text-sm rounded-xl transition-all shadow-xs disabled:opacity-50 tracking-wide"
+                        className="w-full mt-2 py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-semibold text-sm rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                       >
                         {loading ? 'Signing in...' : 'Sign In'}
                       </button>
                     </form>
 
-                    {/* Don't have an account? Sign up */}
-                    <div className="mt-3 text-center text-xs sm:text-sm text-[#475569]">
+                    {/* Sign up prompt */}
+                    <div className="pt-1 text-center text-xs text-slate-600">
                       <span>Don't have an account? </span>
                       <button
                         type="button"
                         onClick={() => {
                           setError(null);
+                          setSuccessMessage(null);
                           setStudentMode('register');
                         }}
-                        className="text-[#1677FF] font-bold hover:underline"
+                        className="text-[#1677FF] font-semibold hover:underline cursor-pointer"
                       >
                         Sign up
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* Registration Mode */}
-                {studentMode === 'register' && (
-                  <div>
-                    <h3 className="text-base font-bold text-[#102A56] mb-3 text-center">
-                      Create Student Account
-                    </h3>
-                    <form onSubmit={handleStudentRegister} className="space-y-2.5">
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#102A56] mb-1">Full Name</label>
-                        <div className="relative">
-                          <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="text"
-                            required
-                            value={fullName}
-                            onChange={(e) => setFullName(e.target.value)}
-                            placeholder="Your full name"
-                            className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#CBD5E1] rounded-xl focus:border-[#1677FF] outline-hidden font-medium"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#102A56] mb-1">Email address</label>
-                        <div className="relative">
-                          <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="email"
-                            required
-                            value={studentEmail}
-                            onChange={(e) => setStudentEmail(e.target.value)}
-                            placeholder="student@university.edu"
-                            className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#CBD5E1] rounded-xl focus:border-[#1677FF] outline-hidden font-medium"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#102A56] mb-1">Password</label>
-                        <div className="relative">
-                          <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type={showStudentPassword ? 'text' : 'password'}
-                            required
-                            value={studentPassword}
-                            onChange={(e) => setStudentPassword(e.target.value)}
-                            placeholder="At least 6 characters"
-                            className="w-full pl-9 pr-9 py-2 text-xs bg-white border border-[#CBD5E1] rounded-xl focus:border-[#1677FF] outline-hidden font-medium"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowStudentPassword(!showStudentPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                          >
-                            {showStudentPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#102A56] mb-1">Confirm Password</label>
-                        <div className="relative">
-                          <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            required
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Confirm password"
-                            className="w-full pl-9 pr-9 py-2 text-xs bg-white border border-[#CBD5E1] rounded-xl focus:border-[#1677FF] outline-hidden font-medium"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                          >
-                            {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full mt-1.5 py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-xs"
-                      >
-                        {loading ? 'Creating account...' : 'Create Account'}
-                      </button>
-                    </form>
-
-                    <div className="mt-3 text-center text-xs text-[#64748B]">
-                      <span>Already have an account? </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setError(null);
-                          setStudentMode('login');
-                        }}
-                        className="text-[#1677FF] font-bold hover:underline"
-                      >
-                        Sign in
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* Verification Mode */}
-                {studentMode === 'verify' && (
-                  <div className="text-center">
-                    <h3 className="text-base font-bold text-[#102A56] mb-1">
-                      Verify Your Email
-                    </h3>
-                    <p className="text-[11px] text-[#64748B] mb-2 font-medium">
-                      Code sent to <span className="font-bold text-[#102A56]">{pendingEmail}</span>
-                    </p>
-                    {demoCodeHelper && (
-                      <div className="mb-3 inline-block px-2.5 py-0.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-mono font-bold">
-                        Code: {demoCodeHelper}
-                      </div>
-                    )}
+                {/* 1B. STUDENT REGISTRATION */}
+                {studentMode === 'register' && (
+                  <form onSubmit={handleStudentRegister} className="space-y-2">
+                    <div className="text-center mb-1">
+                      <h3 className="text-base font-bold text-[#102A56]">Create Student Account</h3>
+                      <p className="text-xs text-[#64748B]">Fill in your details to register</p>
+                    </div>
 
-                    <form onSubmit={handleVerifySubmit} className="space-y-4">
-                      <div className="flex justify-center gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                      <div className="relative">
+                        <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          required
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="Your full name"
+                          className="w-full pl-9 pr-3 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] outline-hidden font-normal"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Email address</label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="email"
+                          required
+                          value={studentEmail}
+                          onChange={(e) => setStudentEmail(e.target.value)}
+                          placeholder="Enter your email address"
+                          className="w-full pl-9 pr-3 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] outline-hidden font-normal"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={showStudentPassword ? 'text' : 'password'}
+                          required
+                          value={studentPassword}
+                          onChange={(e) => setStudentPassword(e.target.value)}
+                          placeholder="At least 6 characters"
+                          className="w-full pl-9 pr-9 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] outline-hidden font-normal"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowStudentPassword(!showStudentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          {showStudentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm Password</label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Confirm password"
+                          className="w-full pl-9 pr-9 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] outline-hidden font-normal"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full mt-2 py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      {loading ? 'Creating account...' : 'Register & Send Verification Email'}
+                    </button>
+
+                    <div className="pt-1 text-center text-xs text-slate-600">
+                      <span>Already have an account? </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError(null);
+                          setSuccessMessage(null);
+                          setStudentMode('login');
+                        }}
+                        className="text-[#1677FF] font-semibold hover:underline cursor-pointer"
+                      >
+                        Sign in
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* 1C. EMAIL VERIFICATION MODE */}
+                {studentMode === 'verify' && (
+                  <div className="text-center space-y-3">
+                    <div>
+                      <h3 className="text-base font-bold text-[#102A56]">Verify Your Email</h3>
+                      <p className="text-xs text-[#64748B] mt-0.5">
+                        Code sent via Brevo to <span className="font-bold text-[#102A56]">{pendingEmail}</span>
+                      </p>
+                    </div>
+
+                    <form onSubmit={handleVerifySubmit} className="space-y-3">
+                      <div className="flex justify-center gap-1.5 sm:gap-2">
                         {verifyDigits.map((digit, index) => (
                           <input
                             key={index}
@@ -559,7 +760,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                             maxLength={6}
                             value={digit}
                             onChange={(e) => handleDigitChange(index, e.target.value)}
-                            className="w-9 h-11 text-center text-lg font-bold text-[#102A56] bg-white border-2 border-[#CBD5E1] rounded-xl focus:border-[#1677FF] outline-hidden font-mono"
+                            className="w-9 sm:w-10 h-11 sm:h-12 text-center text-lg font-bold text-[#102A56] bg-white border border-slate-300 rounded-xl focus:border-[#1677FF] focus:ring-1 focus:ring-[#1677FF]/20 outline-hidden font-mono"
                           />
                         ))}
                       </div>
@@ -567,169 +768,175 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-xs"
+                        className="w-full py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                       >
-                        {loading ? 'Verifying...' : 'Verify Code'}
+                        {loading ? 'Verifying...' : 'Verify Code & Sign In'}
                       </button>
                     </form>
 
-                    <div className="mt-3 text-center text-xs text-[#64748B] flex flex-col gap-1">
+                    <div className="text-center text-xs text-[#64748B] flex flex-col gap-1.5 pt-1">
                       <button
                         type="button"
                         onClick={handleResendCode}
-                        className="text-[#1677FF] font-bold hover:underline"
+                        disabled={loading || resendCooldown > 0}
+                        className="text-[#1677FF] font-semibold hover:underline disabled:text-slate-400 disabled:no-underline flex items-center justify-center gap-1 mx-auto cursor-pointer"
                       >
-                        Resend code
+                        <RotateCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                        <span>
+                          {resendCooldown > 0
+                            ? `Resend code in ${resendCooldown}s`
+                            : 'Resend verification code'}
+                        </span>
                       </button>
+
                       <button
                         type="button"
-                        onClick={() => setStudentMode('login')}
-                        className="text-slate-400 hover:text-slate-600"
+                        onClick={() => {
+                          setError(null);
+                          setSuccessMessage(null);
+                          setStudentMode('login');
+                        }}
+                        className="text-slate-400 hover:text-slate-600 font-medium inline-flex items-center justify-center gap-1 cursor-pointer text-xs"
                       >
-                        Back to Sign In
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Back to Sign In</span>
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* Forgot Password Mode */}
+                {/* 1D. FORGOT PASSWORD MODE */}
                 {studentMode === 'forgot' && (
-                  <div>
-                    <h3 className="text-base font-bold text-[#102A56] mb-1 text-center">
-                      Reset Password
-                    </h3>
-                    <p className="text-[11px] text-[#64748B] mb-3 text-center">
-                      Enter your email to receive recovery instructions.
-                    </p>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        setSuccessMessage('Recovery code generated. Demo code is 123456.');
-                        setStudentMode('verify');
-                      }}
-                      className="space-y-3"
-                    >
-                      <div>
-                        <label className="block text-[11px] font-bold text-[#102A56] mb-1">Email address</label>
-                        <div className="relative">
-                          <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="email"
-                            required
-                            value={pendingEmail}
-                            onChange={(e) => setPendingEmail(e.target.value)}
-                            placeholder="Enter your registered email"
-                            className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-[#CBD5E1] rounded-xl focus:border-[#1677FF] outline-hidden font-medium"
-                          />
-                        </div>
+                  <form onSubmit={handleForgotPassword} className="space-y-2.5">
+                    <div className="text-center mb-1">
+                      <h3 className="text-base font-bold text-[#102A56]">Reset Password</h3>
+                      <p className="text-xs text-[#64748B] mt-0.5">Enter your email for recovery instructions</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Email address</label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="email"
+                          required
+                          value={pendingEmail}
+                          onChange={(e) => setPendingEmail(e.target.value)}
+                          placeholder="Enter your registered email"
+                          className="w-full pl-9 pr-3 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] outline-hidden font-normal"
+                        />
                       </div>
+                    </div>
 
-                      <button
-                        type="submit"
-                        className="w-full py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-xs"
-                      >
-                        Send Recovery Code
-                      </button>
-                    </form>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      {loading ? 'Sending...' : 'Send Recovery Code via Brevo'}
+                    </button>
 
-                    <div className="mt-3 text-center text-xs">
+                    <div className="text-center text-xs pt-1">
                       <button
                         type="button"
-                        onClick={() => setStudentMode('login')}
-                        className="text-[#1677FF] font-bold hover:underline"
+                        onClick={() => {
+                          setError(null);
+                          setSuccessMessage(null);
+                          setStudentMode('login');
+                        }}
+                        className="text-[#1677FF] font-semibold hover:underline cursor-pointer"
                       >
-                        Back to Sign In
+                        ← Back to Sign In
                       </button>
                     </div>
-                  </div>
+                  </form>
+                )}
+
+                {/* 1E. RESET PASSWORD MODE */}
+                {studentMode === 'reset' && (
+                  <form onSubmit={handleResetPassword} className="space-y-2">
+                    <div className="text-center mb-1">
+                      <h3 className="text-base font-bold text-[#102A56]">Enter New Password</h3>
+                      <p className="text-xs text-[#64748B] mt-0.5">Enter the code from your Brevo email</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">6-Digit Recovery Code</label>
+                      <div className="relative">
+                        <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          value={resetToken}
+                          onChange={(e) => setResetToken(e.target.value)}
+                          placeholder="e.g. 582910"
+                          className="w-full pl-9 pr-3 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] outline-hidden font-mono font-bold tracking-wider"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">New Password</label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="At least 6 characters"
+                          className="w-full pl-9 pr-9 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] outline-hidden font-normal"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm New Password</label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          required
+                          value={confirmNewPassword}
+                          onChange={(e) => setConfirmNewPassword(e.target.value)}
+                          placeholder="Confirm new password"
+                          className="w-full pl-9 pr-9 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] outline-hidden font-normal"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full mt-2 py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      {loading ? 'Updating password...' : 'Update Password & Sign In'}
+                    </button>
+
+                    <div className="text-center text-xs pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError(null);
+                          setSuccessMessage(null);
+                          setStudentMode('login');
+                        }}
+                        className="text-[#1677FF] font-semibold hover:underline cursor-pointer"
+                      >
+                        ← Back to Sign In
+                      </button>
+                    </div>
+                  </form>
                 )}
               </>
-            )}
-
-            {/* ================= 2. LOGIN AS ADMIN (Everything Currently Present) ================= */}
-            {activeRole === 'admin' && (
-              <div>
-                <div className="mb-3 text-center">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 text-purple-700 text-[11px] font-bold border border-purple-200">
-                    <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Authorized Creator Portal</span>
-                  </div>
-                </div>
-
-                <div className="mb-3.5 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-[11px] leading-tight">
-                  <p className="font-bold flex items-center gap-1 text-amber-950">
-                    <Lock className="w-3 h-3 text-amber-600" />
-                    Strict Creator Access
-                  </p>
-                  <p className="mt-0.5 text-amber-800">
-                    Restricted strictly to <strong>{AUTHORIZED_CREATOR_EMAIL}</strong>. Public administrator registration is permanently disabled.
-                  </p>
-                </div>
-
-                <form onSubmit={handleAdminLogin} className="space-y-3.5">
-                  <div>
-                    <label className="block text-[13px] font-bold text-[#0F264C] mb-1">
-                      Administrator Email
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="email"
-                        required
-                        value={adminEmail}
-                        onChange={(e) => setAdminEmail(e.target.value)}
-                        placeholder={AUTHORIZED_CREATOR_EMAIL}
-                        className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-white border border-[#CBD5E1] rounded-xl focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 outline-hidden font-medium text-[#0F172A]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[13px] font-bold text-[#0F264C] mb-1">
-                      Administrator Passphrase
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type={showAdminPassword ? 'text' : 'password'}
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                        placeholder="Enter master passphrase"
-                        className="w-full pl-9 pr-9 py-2 text-xs sm:text-sm bg-white border border-[#CBD5E1] rounded-xl focus:border-purple-600 focus:ring-2 focus:ring-purple-600/20 outline-hidden font-medium text-[#0F172A]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowAdminPassword(!showAdminPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        {showAdminPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full mt-2 py-2.5 bg-[#102A56] hover:bg-[#0B1E3D] text-white font-bold text-sm rounded-xl transition-all shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5 tracking-wide"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>{loading ? 'Authenticating...' : 'Sign In as Administrator'}</span>
-                  </button>
-                </form>
-
-                <div className="mt-3.5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAdminEmail(AUTHORIZED_CREATOR_EMAIL);
-                      setAdminPassword('Admin@123');
-                    }}
-                    className="text-xs text-purple-600 hover:underline font-semibold"
-                  >
-                    Auto-fill Creator Demo Passphrase
-                  </button>
-                </div>
-              </div>
             )}
           </div>
         </div>

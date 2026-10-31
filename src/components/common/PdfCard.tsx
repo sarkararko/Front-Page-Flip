@@ -97,14 +97,14 @@ export const PdfCard: React.FC<PdfCardProps> = ({
   };
 
   return (
-    <div className="group bg-white border border-[#E2E8F0] rounded-xl p-4 flex flex-col justify-between hover:border-[#1677FF]/40 hover:shadow-md transition-all duration-200">
+    <div className="group bg-white border border-[#E2E8F0] hover:border-[#1677FF]/40 rounded-2xl p-4 flex flex-col justify-between hover:shadow-[0_12px_28px_rgba(16,42,86,0.08)] transition-all duration-200">
       <div>
         {/* Top Header: Thumbnail with PDF badge + Read Later Toggle */}
         <div className="relative mb-3.5">
           {renderThumbnail()}
 
           {/* Red PDF Badge Tag on bottom-left of thumbnail */}
-          <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-[#EF4444] text-white text-[10px] font-black rounded shadow-sm flex items-center gap-1 select-none">
+          <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-gradient-to-r from-[#EF4444] to-[#DC2626] text-white text-[10px] font-black rounded-md shadow-xs flex items-center gap-1 select-none">
             <span>PDF</span>
           </div>
 
@@ -114,7 +114,7 @@ export const PdfCard: React.FC<PdfCardProps> = ({
               type="button"
               onClick={(e) => onToggleReadLater(pdf.id, e)}
               title={isReadLater ? 'Remove from Read Later' : 'Save to Read Later'}
-              className="absolute top-2 right-2 p-1.5 rounded-md bg-white/90 backdrop-blur-xs text-slate-500 hover:text-[#1677FF] hover:bg-white shadow-xs transition-colors"
+              className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/95 backdrop-blur-xs text-slate-500 hover:text-[#1677FF] hover:bg-white shadow-xs transition-colors"
             >
               <Bookmark
                 className={`w-4 h-4 transition-colors ${
@@ -178,7 +178,7 @@ export const PdfCard: React.FC<PdfCardProps> = ({
         <button
           type="button"
           onClick={() => onViewPdf(pdf)}
-          className="w-full py-2 px-3 bg-[#EFF6FF] hover:bg-[#1677FF] text-[#1677FF] hover:text-white border border-[#DBEAFE] hover:border-[#1677FF] rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all duration-200"
+          className="w-full py-2.5 px-3 bg-gradient-to-r from-[#EFF6FF] to-[#EEF2FF] hover:from-[#1677FF] hover:to-[#0E63DC] text-[#1677FF] hover:text-white border border-[#DBEAFE] hover:border-transparent rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-200 shadow-2xs"
         >
           <span>View PDF</span>
           <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />

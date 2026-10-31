@@ -33,6 +33,15 @@ public class User {
     @Column(nullable = false, length = 64)
     private String provider = "email";
 
+    @Column(name = "last_active_at")
+    private Instant lastActiveAt;
+
+    @Column(name = "last_verification_sent_at")
+    private Instant lastVerificationSentAt;
+
+    @Column(name = "last_password_reset_sent_at")
+    private Instant lastPasswordResetSentAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -76,6 +85,15 @@ public class User {
 
     public String getProvider() { return provider; }
     public void setProvider(String provider) { this.provider = provider; }
+
+    public Instant getLastActiveAt() { return lastActiveAt; }
+    public void setLastActiveAt(Instant lastActiveAt) { this.lastActiveAt = lastActiveAt; }
+
+    public Instant getLastVerificationSentAt() { return lastVerificationSentAt; }
+    public void setLastVerificationSentAt(Instant lastVerificationSentAt) { this.lastVerificationSentAt = lastVerificationSentAt; }
+
+    public Instant getLastPasswordResetSentAt() { return lastPasswordResetSentAt; }
+    public void setLastPasswordResetSentAt(Instant lastPasswordResetSentAt) { this.lastPasswordResetSentAt = lastPasswordResetSentAt; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

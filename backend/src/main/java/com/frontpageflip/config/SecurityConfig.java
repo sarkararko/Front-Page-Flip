@@ -19,9 +19,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final OAuth2AuthenticationSuccessHandler oauth2SuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oauth2FailureHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter,
+                          OAuth2AuthenticationSuccessHandler oauth2SuccessHandler,
+                          OAuth2AuthenticationFailureHandler oauth2FailureHandler) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.oauth2SuccessHandler = oauth2SuccessHandler;
+        this.oauth2FailureHandler = oauth2FailureHandler;
     }
 
     @Bean
@@ -31,7 +37,7 @@ public class SecurityConfig {
                 .cors(cors -> {})
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public authentication endpoints (supports both /api/v1 and /api)
+                        // Public authentication & OAuth endpoints (supports both /api/v1 and /api)
                         .requestMatchers(
                                 "/api/auth/student/login",
                                 "/api/v1/auth/student/login",
@@ -39,10 +45,32 @@ public class SecurityConfig {
                                 "/api/v1/auth/student/register",
                                 "/api/auth/admin/login",
                                 "/api/v1/auth/admin/login",
+                                "/api/admin/login",
+                                "/api/v1/admin/login",
                                 "/api/auth/admin/setup",
                                 "/api/v1/auth/admin/setup",
                                 "/api/auth/verify-email",
                                 "/api/v1/auth/verify-email",
+                                "/api/auth/resend-verification",
+                                "/api/v1/auth/resend-verification",
+                                "/api/auth/forgot-password",
+                                "/api/v1/auth/forgot-password",
+                                "/api/auth/reset-password",
+                                "/api/v1/auth/reset-password",
+                                "/api/auth/google",
+                                "/api/v1/auth/google",
+                                "/oauth2/**",
+                                "/login/oauth2/**",
+                                "/api/presence/active-students-count",
+                                "/api/v1/presence/active-students-count",
+                                "/api/presence/student-count",
+                                "/api/v1/presence/student-count",
+                                "/api/presence/count",
+                                "/api/v1/presence/count",
+                                "/api/presence/heartbeat",
+                                "/api/v1/presence/heartbeat",
+                                "/api/presence/logout",
+                                "/api/v1/presence/logout",
                                 "/actuator/health",
                                 "/actuator/info"
                         ).permitAll()
@@ -68,6 +96,10 @@ public class SecurityConfig {
 
                         // Any other request must be authenticated
                         .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(oauth2SuccessHandler)
+                        .failureHandler(oauth2FailureHandler)
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

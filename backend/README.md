@@ -100,52 +100,74 @@ The server will start on `http://localhost:8080`.
 | `POST` | `/api/v1/pdfs/{id}/read-later` | Authenticated | Toggle Read Later bookmark |
 | `POST` | `/api/v1/pdfs/{id}/progress` | Authenticated | Save reading progress (page number) |
 
+### Student & Administrator Authentication (`/api/v1/auth` & `/api/admin`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/student/register` | Public | Registers student, generates 6-digit OTP, dispatches Brevo verification email |
+| `POST` | `/api/v1/auth/student/login` | Public | Authenticates student; rejects unverified students |
+| `POST` | `/api/v1/auth/verify-email` | Public | Validates 6-digit OTP or verification token, activates account |
+| `POST` | `/api/v1/auth/resend-verification` | Public | Rate-limited (60s cooldown) verification code resend |
+| `POST` | `/api/v1/auth/forgot-password` | Public | Generates single-use 15-min recovery code, sends Brevo email |
+| `POST` | `/api/v1/auth/reset-password` | Public | Resets password with single-use code and BCrypt hash |
+| `POST` | `/api/admin/login` | Public | Independent Admin Login for configured creator (`arkaparna.ds@gmail.com`). No OTP required |
+| `POST` | `/api/v1/auth/admin/login` | Public | Alias for independent Admin Login |
+| `GET`  | `/api/v1/auth/me` | Authenticated | Fetches profile of current session user |
+
 ### Personal Library (`/api/v1/library`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | `GET`  | `/api/v1/library` | Authenticated | Get user's favorites, read-later, & recently viewed |
 | `POST` | `/api/v1/library/favorites/{subjectId}` | Authenticated | Toggle subject favorite |
 
+### Live Presence & Student Tracking (`/api/v1/presence`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET`  | `/api/v1/presence/active-students-count` | Public | Live count of authenticated students active in the last 5 minutes from MySQL (excludes admins) |
+| `POST` | `/api/v1/presence/heartbeat` | Student | Heartbeat updating student `last_active_at` timestamp in MySQL |
+| `POST` | `/api/v1/presence/logout` | Authenticated | Clears user presence upon explicit sign out |
+
 ### Admin Content Management (`/api/v1/admin`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | `GET`  | `/api/v1/admin/stats` | Admin Only | Get system totals (subjects, PDFs, students) |
-| `GET`  | `/api/v1/admin/pdfs` | Admin Only | Get all PDFs including drafts |
-| `PATCH` | `/api/v1/admin/pdfs/{id}/publish` | Admin Only | Toggle publication status |
+| `GET`  | `/api/v1/admin/all-pdfs` | Admin Only | Get all PDFs including drafts |
 
 ---
 
-## 5. Render.com Deployment Guide
+## 5. Render.com & Aiven MySQL Deployment Guide
 
-### Option A: Deploy via Docker (Recommended)
-1. Push your repository to GitHub.
-2. Log into [Render Dashboard](https://dashboard.render.com).
-3. Click **New +** > **Web Service**.
-4. Connect your GitHub repository.
-5. In the service settings:
-   - **Root Directory**: `backend`
-   - **Environment**: `Docker`
-   - **Region**: Select your preferred region (e.g., Oregon, Frankfurt, Singapore).
-   - **Instance Type**: Free or Starter.
-6. Under **Environment Variables**, add:
-   | Key | Example Value | Note |
-   |---|---|---|
-   | `DB_HOST` | `mysql-xxxx.render.com` | From your MySQL instance (e.g. Render MySQL or Aiven) |
-   | `DB_PORT` | `3306` | Default MySQL port |
-   | `DB_NAME` | `frontpageflip` | Database name |
-   | `DB_USERNAME` | `frontpageflip_user` | Database user |
-   | `DB_PASSWORD` | `YourSecretPassword` | Database password |
-   | `JWT_SECRET` | `404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970` | Min 256-bit secret |
-   | `CREATOR_EMAIL` | `arkaparna.ds@gmail.com` | Authorized Admin |
-   | `CORS_ALLOWED_ORIGINS` | `https://your-frontend-domain.app` | Production frontend domain |
-7. Render will automatically provide the `PORT` environment variable, which `application.yml` maps to `server.port`.
-8. Click **Create Web Service**. Flyway migrations run automatically on startup to create all tables.
+### Database & Flyway Migrations
+Database tables are automatically created and updated by Flyway on startup:
+1. `V1__init_schema.sql`: Base tables (`users`, `subjects`, `pdf_documents`, `favorites`, `read_later`, `verification_tokens`, `recently_viewed`).
+2. `V2__add_user_last_active.sql`: Adds `last_active_at` timestamp and index for live presence tracking.
+3. `V3__email_auth_and_tokens.sql`: Adds `password_reset_tokens` table and rate-limiting timestamp columns (`last_verification_sent_at`, `last_password_reset_sent_at`).
 
-### Option B: Deploy via Native Java Runtime
-1. In Render, select **Environment**: `Java`.
-2. **Build Command**: `mvn clean package -DskipTests`
-3. **Start Command**: `java -jar target/frontpageflip-backend-1.0.0.jar`
-4. Set the same environment variables as above.
+### Render Environment Variables
+In your Render Dashboard (**Web Service** > **Environment** tab), configure the following:
+
+| Variable | Example / Recommended Value | Description |
+|---|---|---|
+| `DB_HOST` | `mysql-xxxx.aivencloud.com` | Aiven MySQL Service Host |
+| `DB_PORT` | `12345` | Aiven MySQL Port |
+| `DB_NAME` | `defaultdb` (or `frontpageflip`) | MySQL Database Name |
+| `DB_USERNAME` | `avnadmin` | Aiven MySQL User |
+| `DB_PASSWORD` | `AVNS_xxxxxxxxxxxx` | Aiven MySQL Password |
+| `JWT_SECRET` | `404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970` | 256-bit HMAC-SHA256 Secret |
+| `CREATOR_EMAIL` | `arkaparna.ds@gmail.com` | Designated System Administrator Email |
+| `ADMIN_INITIAL_PASSWORD` | `YourStrongAdminPassword2026!` | Initial Admin BCrypt Seed (applied only if no password set) |
+| `MAIL_HOST` | `smtp-relay.brevo.com` | Brevo SMTP Host |
+| `MAIL_PORT` | `587` | Brevo SMTP Port (STARTTLS) |
+| `MAIL_USERNAME` | `your-brevo-login@domain.com` | Brevo SMTP Account Login |
+| `MAIL_PASSWORD` | `your-brevo-smtp-master-key` | Brevo SMTP Key |
+| `MAIL_FROM` | `no-reply@frontpageflip.com` | Verified Brevo Sender Email |
+| `FRONTEND_URL` | `https://your-frontend.vercel.app` | Frontend Origin (for 1-click verification/reset links) |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,https://your-frontend.vercel.app` | Allowed CORS Origins |
+
+### Render Service Configuration
+- **Root Directory**: `backend`
+- **Environment**: `Docker` (or `Java` with JDK 21)
+- **Build Command** (if Java): `mvn clean package -DskipTests`
+- **Start Command** (if Java): `java -jar target/frontpageflip-backend-1.0.0.jar`
 
 ---
 

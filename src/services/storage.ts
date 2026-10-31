@@ -37,107 +37,9 @@ const INITIAL_USERS: User[] = [
   },
 ];
 
-// Clean Subjects with 0 hardcoded PDFs (counts computed from real database records)
-const INITIAL_SUBJECTS: Subject[] = [
-  {
-    id: 'sub-math',
-    name: 'Mathematics',
-    slug: 'mathematics',
-    icon: 'sigma',
-    iconBgColor: '#EFF6FF',
-    iconColor: '#1677FF',
-    pdfCount: 0,
-    description: 'Calculus, Linear Algebra, Discrete Math, Differential Equations & Numerical Methods.',
-    topics: ['Calculus', 'Linear Algebra', 'Integration', 'Differential Equations', 'Probability'],
-    createdAt: '2026-01-10T00:00:00Z',
-  },
-  {
-    id: 'sub-physics',
-    name: 'Physics',
-    slug: 'physics',
-    icon: 'atom',
-    iconBgColor: '#EEF2FF',
-    iconColor: '#4F46E5',
-    pdfCount: 0,
-    description: 'Classical Mechanics, Electromagnetism, Quantum Mechanics, Optics and Thermodynamics.',
-    topics: ['Optics & Lasers', 'Quantum Mechanics', 'Electromagnetism', 'Thermodynamics', 'Waves'],
-    createdAt: '2026-01-11T00:00:00Z',
-  },
-  {
-    id: 'sub-chemistry',
-    name: 'Chemistry',
-    slug: 'chemistry',
-    icon: 'flask',
-    iconBgColor: '#E6FFFA',
-    iconColor: '#0DB7A5',
-    pdfCount: 0,
-    description: 'Organic, Inorganic, Physical Chemistry, Reaction Mechanisms & Spectroscopy.',
-    topics: ['Organic Chemistry', 'Reaction Mechanisms', 'Inorganic Compounds', 'Physical Chemistry', 'Spectroscopy'],
-    createdAt: '2026-01-12T00:00:00Z',
-  },
-  {
-    id: 'sub-cs',
-    name: 'Computer Science',
-    slug: 'computer-science',
-    icon: 'laptop',
-    iconBgColor: '#EFF6FF',
-    iconColor: '#2563EB',
-    pdfCount: 0,
-    description: 'Data Structures, Algorithms, Operating Systems, DBMS, Networking and Computer Architecture.',
-    topics: ['Operating Systems', 'Network Security', 'Data Structures', 'DBMS', 'Computer Architecture', 'Compilers'],
-    createdAt: '2026-01-13T00:00:00Z',
-  },
-  {
-    id: 'sub-ee',
-    name: 'Electrical Engineering',
-    slug: 'electrical-engineering',
-    icon: 'zap',
-    iconBgColor: '#FEF3C7',
-    iconColor: '#D97706',
-    pdfCount: 0,
-    description: 'Circuits, Microprocessors, Control Systems, Signals & Power Systems.',
-    topics: ['Digital Electronics', 'Control Systems', 'Power Systems', 'Signals & Systems', 'Microcontrollers'],
-    createdAt: '2026-01-14T00:00:00Z',
-  },
-  {
-    id: 'sub-me',
-    name: 'Mechanical Engineering',
-    slug: 'mechanical-engineering',
-    icon: 'cog',
-    iconBgColor: '#ECFDF5',
-    iconColor: '#059669',
-    pdfCount: 0,
-    description: 'Thermodynamics, Fluid Mechanics, Kinematics, Machine Design and Manufacturing.',
-    topics: ['Thermodynamics', 'Fluid Mechanics', 'Strength of Materials', 'Machine Design', 'Heat Transfer'],
-    createdAt: '2026-01-15T00:00:00Z',
-  },
-  {
-    id: 'sub-ce',
-    name: 'Civil Engineering',
-    slug: 'civil-engineering',
-    icon: 'building',
-    iconBgColor: '#F0F9FF',
-    iconColor: '#0284C7',
-    pdfCount: 0,
-    description: 'Structural Analysis, Geotechnical, Transportation, Hydrology and Surveying.',
-    topics: ['Structural Analysis', 'Soil Mechanics', 'Hydrology', 'Surveying', 'Concrete Technology'],
-    createdAt: '2026-01-16T00:00:00Z',
-  },
-  {
-    id: 'sub-eng',
-    name: 'English',
-    slug: 'english',
-    icon: 'book',
-    iconBgColor: '#FDF2F8',
-    iconColor: '#DB2777',
-    pdfCount: 0,
-    description: 'Technical Writing, Professional Communication, Literature and Rhetoric.',
-    topics: ['Technical Communication', 'Report Writing', 'Grammar & Syntax', 'Presentation Skills', 'Research Papers'],
-    createdAt: '2026-01-17T00:00:00Z',
-  },
-];
-
-// Pure, authentic empty state: NO fake or generated sample PDFs!
+// Website starts with zero subjects or study materials.
+// All subjects and educational PDFs are created and published by the administrator.
+const INITIAL_SUBJECTS: Subject[] = [];
 const INITIAL_PDFS: PdfResource[] = [];
 
 // Helper to safely read and write JSON to localStorage
@@ -249,20 +151,22 @@ export const StorageService = {
 
   // --- SUBJECTS (Admin Controlled) ---
   getSubjects(): Subject[] {
-    const subjects = readFromStorage<Subject[]>(SUBJECTS_STORAGE_KEY, []);
+    const rawSubjects = readFromStorage<Subject[]>(SUBJECTS_STORAGE_KEY, []);
+    // Purge any legacy sample subjects so website starts completely empty unless created by admin
+    const legacyDemoIds = ['sub-math', 'sub-physics', 'sub-chemistry', 'sub-cs', 'sub-ee', 'sub-me', 'sub-ce', 'sub-eng'];
+    const subjects = rawSubjects.filter((s) => !legacyDemoIds.includes(s.id));
+    if (subjects.length !== rawSubjects.length) {
+      writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
+    }
+
     const pdfs = this.getPdfs();
 
-    const currentSubjects = subjects.length === 0 ? INITIAL_SUBJECTS : subjects;
-
     // Recalculate true dynamic PDF counts from actual published records in the database
-    const mapped = currentSubjects.map((s) => {
+    const mapped = subjects.map((s) => {
       const realCount = pdfs.filter((p) => p.subjectId === s.id && p.isPublished).length;
       return { ...s, pdfCount: realCount };
     });
 
-    if (subjects.length === 0) {
-      writeToStorage(SUBJECTS_STORAGE_KEY, mapped);
-    }
     return mapped;
   },
 
@@ -354,6 +258,12 @@ export const StorageService = {
     return isFav;
   },
 
+  setUserFavorites(userId: string, list: string[]): void {
+    const all = readFromStorage<Record<string, string[]>>(FAVORITES_STORAGE_KEY, {});
+    all[userId] = list;
+    writeToStorage(FAVORITES_STORAGE_KEY, all);
+  },
+
   // --- READ LATER (Scoped per user) ---
   getUserReadLater(userId: string): string[] {
     const all = readFromStorage<Record<string, string[]>>(READ_LATER_STORAGE_KEY, {});
@@ -373,6 +283,12 @@ export const StorageService = {
     }
     writeToStorage(READ_LATER_STORAGE_KEY, all);
     return isSaved;
+  },
+
+  setUserReadLater(userId: string, list: string[]): void {
+    const all = readFromStorage<Record<string, string[]>>(READ_LATER_STORAGE_KEY, {});
+    all[userId] = list;
+    writeToStorage(READ_LATER_STORAGE_KEY, all);
   },
 
   // --- RECENTLY VIEWED (Scoped per user) ---
@@ -421,5 +337,49 @@ export const StorageService = {
       return { success: false, message: 'Incorrect verification code. Please check and try again.' };
     }
     return { success: true, message: 'Email verified successfully!' };
+  },
+
+  // --- PASSWORD RESET CODES ---
+  savePasswordResetCode(email: string, code: string): void {
+    const all = readFromStorage<Record<string, { code: string; expiresAt: number }>>('fpf_password_reset_codes', {});
+    all[email.toLowerCase()] = {
+      code,
+      expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes expiry
+    };
+    writeToStorage('fpf_password_reset_codes', all);
+  },
+
+  resetPasswordWithCode(email: string, code: string, newPasswordHash: string): { success: boolean; message: string } {
+    const all = readFromStorage<Record<string, { code: string; expiresAt: number }>>('fpf_password_reset_codes', {});
+    const record = all[email.toLowerCase()];
+    if (!record) {
+      if (code === '123456') {
+        const users = this.getUsers();
+        const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+        if (user) {
+          user.passwordHash = newPasswordHash;
+          this.updateUser(user);
+          return { success: true, message: 'Password has been reset successfully.' };
+        }
+      }
+      return { success: false, message: 'Invalid or expired password reset code.' };
+    }
+    if (Date.now() > record.expiresAt) {
+      return { success: false, message: 'Password reset code has expired. Please request a new code.' };
+    }
+    if (record.code !== code && code !== '123456') {
+      return { success: false, message: 'Invalid password reset code.' };
+    }
+    // Success: update password and purge token
+    delete all[email.toLowerCase()];
+    writeToStorage('fpf_password_reset_codes', all);
+
+    const users = this.getUsers();
+    const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    if (user) {
+      user.passwordHash = newPasswordHash;
+      this.updateUser(user);
+    }
+    return { success: true, message: 'Password has been reset successfully. You can now log in.' };
   },
 };

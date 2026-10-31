@@ -29,6 +29,12 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> authenticateGoogle(@Valid @RequestBody GoogleAuthRequest request) {
+        AuthResponse response = authService.authenticateGoogleStudent(request);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/admin/login")
     public ResponseEntity<AuthResponse> loginAdmin(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.loginAdmin(request);
@@ -42,9 +48,27 @@ public class AuthController {
     }
 
     @PostMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@Valid @RequestBody VerificationRequest request) {
-        boolean verified = authService.verifyEmail(request.getToken());
-        return ResponseEntity.ok().body("{\"success\": " + verified + ", \"message\": \"Email verified successfully.\"}");
+    public ResponseEntity<AuthResponse> verifyEmail(@Valid @RequestBody VerificationRequest request) {
+        AuthResponse response = authService.verifyEmail(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<GenericResponse> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+        GenericResponse response = authService.resendVerification(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<GenericResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        GenericResponse response = authService.forgotPassword(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<GenericResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        GenericResponse response = authService.resetPassword(request);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/me")

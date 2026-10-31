@@ -205,14 +205,25 @@ export const BrowsePdfsPage: React.FC<BrowsePdfsPageProps> = ({
             />
           ))}
         </div>
+      ) : pdfs.length === 0 ? (
+        /* Total Empty State */
+        <div className="bg-gradient-to-br from-white via-[#FAFDFE] to-[#F0F7FF] rounded-3xl border border-[#DCE7F6] p-12 text-center max-w-lg mx-auto shadow-xs">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-[#1677FF]/15 to-[#0DB7A5]/20 text-[#1677FF] border border-[#1677FF]/25 flex items-center justify-center mb-4 shadow-xs">
+            <BookOpen className="w-8 h-8 text-[#1677FF]" />
+          </div>
+          <h3 className="text-xl font-bold text-[#102A56]">No study materials available yet</h3>
+          <p className="text-sm text-[#64748B] mt-2 font-medium">
+            New content will appear here once published by the admin.
+          </p>
+        </div>
       ) : (
-        /* Empty State */
+        /* Filtered Empty State */
         <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 text-center max-w-lg mx-auto shadow-xs">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-50 text-[#1677FF] flex items-center justify-center mb-4">
             <BookOpen className="w-8 h-8" />
           </div>
           <h3 className="text-lg font-bold text-[#102A56]">No PDFs found</h3>
-          <p className="text-sm text-[#64748B] mt-1.5">
+          <p className="text-sm text-[#64748B] mt-1.5 font-medium">
             Try a different title, subject, or topic.
           </p>
           <button

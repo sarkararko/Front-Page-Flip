@@ -4,10 +4,17 @@ import { DashboardHeroIllustration } from '../common/DashboardHeroIllustration';
 
 interface HeroSearchProps {
   userName: string;
+  activeStudentsCount?: number;
+  registeredStudentsCount?: number;
   onSearch: (query: string) => void;
 }
 
-export const HeroSearch: React.FC<HeroSearchProps> = ({ userName, onSearch }) => {
+export const HeroSearch: React.FC<HeroSearchProps> = ({
+  userName,
+  activeStudentsCount = 0,
+  registeredStudentsCount,
+  onSearch,
+}) => {
   const [searchInput, setSearchInput] = useState('');
 
   // Compute greeting according to local time
@@ -18,7 +25,7 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({ userName, onSearch }) =>
     return 'Good evening';
   };
 
-  const firstName = userName ? userName.split(' ')[0] : 'Arkoparno';
+  const firstName = userName ? userName.split(' ')[0] : 'Student';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,16 +35,35 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({ userName, onSearch }) =>
   };
 
   return (
-    <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F0F6FF] via-[#F5F9FE] to-[#EBF4FE] border border-[#DCE8F8] p-6 sm:p-8 md:p-10 shadow-xs mb-10">
+    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#EDF5FF] via-[#F3F9FE] to-[#E8F5FF] border border-[#D4E5F9] p-6 sm:p-8 md:p-10 shadow-[0_8px_30px_rgb(22,119,255,0.06)] mb-10">
       {/* Decorative subtle ambient circles */}
-      <div className="absolute top-0 right-1/4 w-80 h-80 bg-white/50 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-10 right-10 w-72 h-72 bg-blue-100/40 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute top-0 right-1/4 w-80 h-80 bg-blue-300/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-10 right-10 w-72 h-72 bg-teal-300/20 rounded-full blur-2xl pointer-events-none" />
 
       <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8">
         {/* Left Content Area */}
         <div className="w-full md:max-w-xl text-left">
+          {/* Live Online Badge near the top */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/95 backdrop-blur-xs border border-emerald-500/25 shadow-xs mb-3.5 text-xs font-bold text-[#102A56] select-none">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-emerald-700 font-extrabold tracking-wide">
+              {activeStudentsCount} {activeStudentsCount === 1 ? 'Student' : 'Students'} Online Now
+            </span>
+            {typeof registeredStudentsCount === 'number' && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="text-[#1677FF] font-bold">{registeredStudentsCount} Registered Students</span>
+              </>
+            )}
+            <span className="text-slate-300">•</span>
+            <span className="text-slate-600 font-medium hidden sm:inline">MySQL Live</span>
+          </div>
+
           {/* Greeting matching reference: "Good morning, Arkoparno! 👋" */}
-          <h1 className="text-2xl sm:text-3xl md:text-[34px] font-extrabold text-[#102A56] tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl md:text-[34px] font-black text-[#102A56] tracking-tight flex items-center gap-2">
             <span>
               {getGreeting()}, {firstName}!
             </span>
