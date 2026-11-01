@@ -12,8 +12,10 @@ import {
   RotateCw,
   KeyRound,
   ArrowLeft,
+  X,
 } from 'lucide-react';
 import { ApiService } from '../../services/api';
+import { StorageService } from '../../services/storage';
 import { User } from '../../types';
 
 export const USER_ARTWORK_IMAGE_URL =
@@ -326,10 +328,64 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
     }
   };
 
+  // =========================================================================
+  // TEMPORARY: Test bypass handler (will be removed after testing is complete)
+  // =========================================================================
+  const handleBypassLogin = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const testUser: User = {
+      id: 'usr_test_student',
+      name: 'Arkoparno',
+      email: 'student.test@frontpageflip.com',
+      role: 'student',
+      emailVerified: true,
+      createdAt: new Date().toISOString(),
+      avatar: 'A',
+      provider: 'email',
+    };
+    try {
+      const existing = StorageService.getUserByEmail(testUser.email);
+      if (!existing) {
+        StorageService.addUser(testUser);
+      }
+      StorageService.setCurrentUser(testUser);
+      StorageService.setSessionToken('session_test_bypass_student');
+    } catch (err) {
+      console.error('Storage error during bypass:', err);
+    }
+    onSuccess(testUser);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#EEF4FD] via-[#F4F8FE] to-[#E9F1FC] flex items-center justify-center p-3 sm:p-4 lg:p-5 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-[#EEF4FD] via-[#F4F8FE] to-[#E9F1FC] flex items-center justify-center p-3 sm:p-4 lg:p-5 font-sans relative">
+      {/* ================= TEMPORARY TESTING CONTROLS (Remove after testing) ================= */}
+      {/* 1. Global Floating Viewport Controls */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-amber-300 shadow-lg">
+        <button
+          type="button"
+          onClick={handleBypassLogin}
+          className="flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-full cursor-pointer transition-colors"
+          title="Click to bypass login and open website directly"
+        >
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span>Bypass Login (Test)</span>
+        </button>
+        <button
+          type="button"
+          onClick={handleBypassLogin}
+          title="Close login page & open website"
+          aria-label="Close login page"
+          className="p-1 rounded-full text-slate-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
       {/* Centered Two-Column Responsive Layout: Unified Seamless Container with Zero Gap */}
-      <div className="w-full max-w-[880px] lg:h-[570px] xl:h-[590px] bg-white rounded-3xl shadow-[0_16px_48px_rgba(16,42,86,0.10)] border border-slate-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-0 my-auto items-stretch">
+      <div className="relative w-full max-w-[880px] lg:h-[570px] xl:h-[590px] bg-white rounded-3xl shadow-[0_16px_48px_rgba(16,42,86,0.10)] border border-slate-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-0 my-auto items-stretch">
         
         {/* ================= 1. LEFT BOX: DEDICATED ARTWORK CARD ================= */}
         <div className="w-full h-full min-h-[380px] sm:min-h-[460px] lg:min-h-0 bg-[#F7FAFD] overflow-hidden relative p-0 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-slate-100">
@@ -346,9 +402,35 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
         </div>
 
         {/* ================= 2. RIGHT BOX: AUTHENTICATION CARD ================= */}
-        <div className="w-full h-full min-h-[480px] lg:min-h-0 bg-white p-6 sm:p-7 lg:p-8 flex flex-col justify-center overflow-y-auto">
+        <div className="relative w-full h-full min-h-[480px] lg:min-h-0 bg-white p-6 sm:p-7 lg:p-8 flex flex-col justify-center overflow-y-auto">
+          {/* Card Top-Right Close Cross */}
+          <button
+            type="button"
+            onClick={handleBypassLogin}
+            title="Close login & open website"
+            aria-label="Close login"
+            className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 cursor-pointer transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
           <div className="w-full max-w-[345px] mx-auto my-auto flex flex-col justify-center py-1 sm:py-2">
             
+            {/* In-Card Quick Testing Banner */}
+            <div className="mb-2 p-1.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-1.5 text-xs">
+              <span className="flex items-center gap-1 text-amber-800 font-semibold text-[11px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Testing Mode
+              </span>
+              <button
+                type="button"
+                onClick={handleBypassLogin}
+                className="px-2 py-0.5 text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-md cursor-pointer transition-colors"
+              >
+                Open Website →
+              </button>
+            </div>
+
             {/* TOP HEADING */}
             <div className="text-center mb-3 sm:mb-4">
               <h2 className="text-[25px] sm:text-[27px] font-black text-[#0F264C] tracking-tight leading-snug">

@@ -46,7 +46,9 @@ export default function App() {
   // Load initial data and sync authoritative user profile from backend MySQL
   const loadData = () => {
     const user = ApiService.getCurrentUser();
-    setCurrentUser(user);
+    if (user) {
+      setCurrentUser(user);
+    }
 
     // Fetch authoritative profile directly from backend MySQL (/api/v1/auth/me)
     if (user || StorageService.getSessionToken()) {
@@ -186,6 +188,11 @@ export default function App() {
 
   // --- ACTIONS ---
   const handleLoginSuccess = (user: User) => {
+    const existing = StorageService.getUserByEmail(user.email);
+    if (!existing) {
+      StorageService.addUser(user);
+    }
+    StorageService.setCurrentUser(user);
     setCurrentUser(user);
     loadData();
     // Redirect according to role
