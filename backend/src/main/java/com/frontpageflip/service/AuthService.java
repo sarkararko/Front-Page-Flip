@@ -406,6 +406,18 @@ public class AuthService {
         return toUserDto(user);
     }
 
+    @Transactional
+    public UserDto updateUserProfile(String userId, String newName) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+        if (newName != null && !newName.trim().isBlank()) {
+            user.setName(newName.trim());
+            User saved = userRepository.save(user);
+            return toUserDto(saved);
+        }
+        return toUserDto(user);
+    }
+
     private void saveVerificationToken(User user, String code, long duration, ChronoUnit unit) {
         VerificationToken verificationToken = new VerificationToken(
                 "vtok_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16),

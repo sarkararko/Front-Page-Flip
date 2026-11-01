@@ -22,12 +22,13 @@ export const USER_BACKGROUND_IMAGE_URL = USER_ARTWORK_IMAGE_URL;
 
 interface AuthPageProps {
   onSuccess: (user: User) => void;
+  initialError?: string | null;
 }
 
 type RoleTab = 'student' | 'admin';
 type StudentMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
 
-export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
+export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) => {
   // Option A (Student) vs Option B (Admin)
   const [activeRole, setActiveRole] = useState<RoleTab>('student');
   const [studentMode, setStudentMode] = useState<StudentMode>('login');
@@ -58,12 +59,28 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
 
   // Status feedback
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError || null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Read URL query parameters on mount (e.g. from 1-click email links)
+  // Sync initialError if it changes
+  useEffect(() => {
+    if (initialError) {
+      setError(initialError);
+    }
+  }, [initialError]);
+
+  // Read URL query parameters and hash on mount
   useEffect(() => {
     try {
+      const hash = window.location.hash;
+      if (hash.includes('auth-error')) {
+        const query = hash.split('?')[1] || '';
+        const hashParams = new URLSearchParams(query);
+        const errorMsg = hashParams.get('message');
+        if (errorMsg) {
+          setError(decodeURIComponent(errorMsg));
+        }
+      }
       const params = new URLSearchParams(window.location.search);
       const roleParam = params.get('role');
       const modeParam = params.get('mode');

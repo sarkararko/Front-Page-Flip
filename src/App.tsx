@@ -13,12 +13,14 @@ import { MyLibraryPage } from './components/library/MyLibraryPage';
 import { PdfReader } from './components/reader/PdfReader';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProfilePage } from './components/profile/ProfilePage';
+import { AboutPage } from './components/about/AboutPage';
 import { QuickSearchModal } from './components/common/QuickSearchModal';
 import { Logo } from './components/common/Logo';
 
 export default function App() {
   // Authentication session
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // App data loaded from backend / StorageService
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -29,6 +31,7 @@ export default function App() {
   // Live student count from MySQL
   const [activeStudentsCount, setActiveStudentsCount] = useState<number>(0);
   const [registeredStudentsCount, setRegisteredStudentsCount] = useState<number>(0);
+  const [registeredStudentsLoading, setRegisteredStudentsLoading] = useState<boolean>(true);
 
   // Navigation state
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -40,10 +43,19 @@ export default function App() {
   // Search Modal state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
-  // Load initial data
+  // Load initial data and sync authoritative user profile from backend MySQL
   const loadData = () => {
     const user = ApiService.getCurrentUser();
     setCurrentUser(user);
+
+    // Fetch authoritative profile directly from backend MySQL (/api/v1/auth/me)
+    if (user || StorageService.getSessionToken()) {
+      ApiService.fetchCurrentUserProfile().then((freshProfile) => {
+        if (freshProfile) {
+          setCurrentUser(freshProfile);
+        }
+      });
+    }
 
     ApiService.getSubjects().then((subs) => setSubjects(subs));
     ApiService.getPdfs().then((pList) => setPdfs(pList));
@@ -70,29 +82,47 @@ export default function App() {
         const params = new URLSearchParams(query);
         const token = params.get('token');
         const email = params.get('email');
-        const name = params.get('name') || 'Student';
+        const rawName = params.get('name');
+        const name =
+          rawName && rawName !== 'Student' && !rawName.includes('@')
+            ? rawName
+            : (email ? email.split('@')[0] : '');
         const userId = params.get('userId') || `usr_${Date.now()}`;
+
+        const rawProvider = params.get('provider');
+        const provider: 'google' | 'github' | 'email' =
+          rawProvider === 'github' ? 'github' : rawProvider === 'email' ? 'email' : 'google';
 
         if (token && email) {
           const studentUser: User = {
             id: userId,
             name,
             email,
-            role: 'student', // STRICT: Google OAuth is always student
+            role: 'student', // STRICT: OAuth is always student
             emailVerified: true,
             createdAt: new Date().toISOString(),
-            provider: 'google',
-            avatar: name.slice(0, 2).toUpperCase(),
+            provider,
+            avatar: name ? name.slice(0, 2).toUpperCase() : 'ST',
           };
           StorageService.addUser(studentUser);
           StorageService.setCurrentUser(studentUser);
           StorageService.setSessionToken(token);
           setCurrentUser(studentUser);
           window.history.replaceState(null, '', window.location.pathname);
+
+          // Authoritatively sync user profile from MySQL
+          ApiService.fetchCurrentUserProfile().then((fresh) => {
+            if (fresh) setCurrentUser(fresh);
+          });
+
           loadData();
           return;
         }
       } else if (hash.includes('auth-error')) {
+        const query = hash.split('?')[1] || '';
+        const params = new URLSearchParams(query);
+        const errMsg = params.get('message') || 'Social authentication failed or was canceled.';
+        setAuthError(errMsg);
         window.history.replaceState(null, '', window.location.pathname);
       }
     } catch {
@@ -105,13 +135,19 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     const fetchCounts = async () => {
-      const [active, total] = await Promise.all([
-        PresenceService.getActiveStudentsCount(),
-        PresenceService.getRegisteredStudentCount(),
-      ]);
-      if (isMounted) {
-        setActiveStudentsCount(active);
-        setRegisteredStudentsCount(total);
+      try {
+        const [active, total] = await Promise.all([
+          PresenceService.getActiveStudentsCount(),
+          PresenceService.getRegisteredStudentCount(),
+        ]);
+        if (isMounted) {
+          setActiveStudentsCount(active);
+          setRegisteredStudentsCount(total);
+        }
+      } finally {
+        if (isMounted) {
+          setRegisteredStudentsLoading(false);
+        }
       }
     };
     fetchCounts();
@@ -132,6 +168,13 @@ export default function App() {
       return () => clearInterval(hbInterval);
     }
   }, [currentUser]);
+
+  // Strict RBAC: Ensure students cannot stay on admin dashboard
+  useEffect(() => {
+    if (activeTab === 'admin' && currentUser?.role !== 'admin') {
+      setActiveTab('home');
+    }
+  }, [activeTab, currentUser]);
 
   // Update user-scoped data when user changes
   useEffect(() => {
@@ -241,7 +284,7 @@ export default function App() {
 
   // If not logged in, show Auth Page matching fpf login interface.png
   if (!currentUser) {
-    return <AuthPage onSuccess={handleLoginSuccess} />;
+    return <AuthPage onSuccess={handleLoginSuccess} initialError={authError} />;
   }
 
   return (
@@ -250,6 +293,8 @@ export default function App() {
       <Navbar
         currentUser={currentUser}
         activeTab={activeTab}
+        registeredStudentsCount={registeredStudentsCount}
+        registeredStudentsLoading={registeredStudentsLoading}
         activeStudentsCount={activeStudentsCount}
         onNavigate={handleNavigate}
         onOpenSearch={() => setIsSearchModalOpen(true)}
@@ -343,30 +388,18 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'admin' && (
-          currentUser.role === 'admin' ? (
-            <AdminDashboard
-              currentUser={currentUser}
-              subjects={subjects}
-              pdfs={pdfs}
-              onRefreshData={loadData}
-              onViewPdf={handleViewPdf}
-            />
-          ) : (
-            <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-2xl border border-red-200 text-center shadow-xs">
-              <h2 className="text-lg font-bold text-red-600">Access Restricted</h2>
-              <p className="text-xs text-slate-500 mt-2">
-                Administrator privileges are required to access this workspace.
-              </p>
-              <button
-                type="button"
-                onClick={() => handleNavigate('home')}
-                className="mt-4 px-4 py-2 bg-[#1677FF] text-white text-xs font-bold rounded-xl"
-              >
-                Return to Home
-              </button>
-            </div>
-          )
+        {activeTab === 'about' && (
+          <AboutPage onNavigate={handleNavigate} />
+        )}
+
+        {activeTab === 'admin' && currentUser?.role === 'admin' && (
+          <AdminDashboard
+            currentUser={currentUser}
+            subjects={subjects}
+            pdfs={pdfs}
+            onRefreshData={loadData}
+            onViewPdf={handleViewPdf}
+          />
         )}
 
         {activeTab === 'profile' && (
@@ -419,7 +452,10 @@ export default function App() {
             <button type="button" onClick={() => handleNavigate('my-library')} className="hover:text-[#1677FF]">
               My Library
             </button>
-            {currentUser.role === 'admin' && (
+            <button type="button" onClick={() => handleNavigate('about')} className="hover:text-[#1677FF]">
+              About
+            </button>
+            {currentUser?.role === 'admin' && (
               <button
                 type="button"
                 onClick={() => handleNavigate('admin')}

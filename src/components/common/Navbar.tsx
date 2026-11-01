@@ -13,6 +13,7 @@ import {
   BookMarked,
   Clock,
   Star,
+  Users,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { User } from '../../types';
@@ -20,6 +21,8 @@ import { User } from '../../types';
 interface NavbarProps {
   currentUser: User | null;
   activeTab: string;
+  registeredStudentsCount?: number;
+  registeredStudentsLoading?: boolean;
   activeStudentsCount?: number;
   onNavigate: (tab: string, extra?: any) => void;
   onOpenSearch: () => void;
@@ -29,6 +32,8 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   activeTab,
+  registeredStudentsCount = 0,
+  registeredStudentsLoading = false,
   activeStudentsCount = 0,
   onNavigate,
   onOpenSearch,
@@ -56,14 +61,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'browse', label: 'Browse PDFs' },
     { id: 'subjects', label: 'Subjects' },
     { id: 'recent', label: 'Recently Added' },
+    { id: 'about', label: 'About' },
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0]">
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10">
-        <div className="flex w-full items-center justify-between h-16">
-          {/* Left: Brand Logo */}
-          <div className="flex items-center gap-6 lg:gap-10 xl:gap-12 shrink-0">
+    <header className="sticky top-0 z-40 bg-white border-b border-[#E2E8F0] shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-18 sm:h-20">
+          {/* Left: Brand Logo + Navigation Links */}
+          <div className="flex items-center gap-4 lg:gap-6 shrink-0">
             <div
               onClick={() => onNavigate('home')}
               className="cursor-pointer inline-flex items-center select-none"
@@ -71,13 +77,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               <img
                 src="https://res.cloudinary.com/fi4r80wz/image/upload/v1792825222/fpf_logo_99_spkx2y.png"
                 alt="Front-Page Flip"
-                className="h-16 sm:h-18 w-auto object-contain transition-transform duration-200 hover:scale-105"
+                className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 hover:scale-105"
                 loading="eager"
               />
             </div>
 
+            {/* Subtle Divider between logo and nav links */}
+            <div className="hidden md:block h-6 w-px bg-slate-200/90 mx-1" />
+
             {/* Desktop Center Navigation Links */}
-            <nav className="hidden md:flex items-center gap-3 lg:gap-5 xl:gap-7">
+            <nav className="hidden md:flex items-center gap-1 lg:gap-3">
               {navLinks.map((link) => {
                 const isActive = activeTab === link.id;
                 return (
@@ -85,15 +94,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                     key={link.id}
                     type="button"
                     onClick={() => onNavigate(link.id)}
-                    className={`relative px-4 py-2 text-sm font-semibold transition-colors ${
+                    className={`relative px-3.5 py-2 text-sm font-semibold transition-colors cursor-pointer ${
                       isActive
                         ? 'text-[#1677FF]'
-                        : 'text-[#64748B] hover:text-[#102A56]'
+                        : 'text-[#1E293B] hover:text-[#1677FF]'
                     }`}
                   >
                     <span>{link.label}</span>
                     {isActive && (
-                      <span className="absolute bottom-[-13px] left-3 right-3 h-[3px] bg-[#1677FF] rounded-full" />
+                      <span className="absolute -bottom-5 sm:-bottom-6 left-1/2 -translate-x-1/2 w-10 h-[3.5px] bg-[#1677FF] rounded-full" />
                     )}
                   </button>
                 );
@@ -102,30 +111,47 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Navigation Controls */}
-          <div className="flex items-center gap-2.5 sm:gap-4 lg:gap-5 shrink-0">
-            {/* Live Active Students Count Badge */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Registered Students Count Badge (Green Teal from Logo) - Positioned strictly to the left of Search Icon */}
             <div
-              title="Students online and active in the last 5 minutes (from MySQL database)"
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 text-xs font-bold tracking-wide shadow-2xs select-none transition-all"
+              title="Total registered student accounts in Aiven MySQL database"
+              className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-[#E6F8F5] border border-[#A5E7DC] text-[#00A88F] text-xs sm:text-[13px] font-semibold select-none shadow-2xs transition-all hover:bg-[#D8F5F0]"
             >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="font-semibold text-[11px] sm:text-xs">
-                {activeStudentsCount} {activeStudentsCount === 1 ? 'Student' : 'Students'} Online
-              </span>
+              <Users className="w-4 h-4 text-[#00A88F] fill-[#00A88F] shrink-0" />
+              {registeredStudentsLoading ? (
+                <span className="inline-block w-20 sm:w-28 h-4 bg-[#A5E7DC]/70 rounded-full animate-pulse" />
+              ) : (
+                <span className="text-xs sm:text-[13px] font-semibold text-[#00A88F] whitespace-nowrap">
+                  <span className="font-bold">
+                    {typeof registeredStudentsCount === 'number'
+                      ? registeredStudentsCount.toLocaleString()
+                      : '0'}
+                  </span>{' '}
+                  <span className="hidden sm:inline">
+                    {registeredStudentsCount === 1 ? 'Registered Student' : 'Registered Students'}
+                  </span>
+                  <span className="sm:hidden">
+                    {registeredStudentsCount === 1 ? 'Student' : 'Students'}
+                  </span>
+                </span>
+              )}
             </div>
+
+            {/* Subtle Divider before Search */}
+            <div className="h-6 w-px bg-slate-200/90 mx-0.5 hidden sm:block" />
 
             {/* Search Button */}
             <button
               type="button"
               onClick={onOpenSearch}
-              title="Search notes and subjects"
-              className="p-2 text-slate-500 hover:text-[#1677FF] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              title="Search notes, subjects and topics"
+              className="p-2 text-slate-700 hover:text-[#1677FF] hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
             >
               <Search className="w-5 h-5" />
             </button>
+
+            {/* Subtle Divider before My Library */}
+            <div className="h-6 w-px bg-slate-200/90 mx-0.5 hidden sm:block" />
 
             {/* My Library Button */}
             <button
@@ -134,21 +160,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                 activeTab === 'my-library'
                   ? 'bg-blue-50 text-[#1677FF]'
-                  : 'text-[#102A56] hover:bg-slate-100'
+                  : 'text-[#1677FF] hover:bg-blue-50/70'
               }`}
             >
-              <Bookmark className="w-4 h-4 text-[#1677FF]" />
+              <Bookmark className="w-4 h-4 text-[#1677FF] fill-[#1677FF]/20" />
               <span>My Library</span>
             </button>
+
+            {/* Subtle Divider before Notifications */}
+            <div className="h-6 w-px bg-slate-200/90 mx-0.5 hidden sm:block" />
 
             {/* Notification Bell */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative p-2 text-slate-500 hover:text-[#102A56] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                className="relative p-2 text-slate-700 hover:text-[#1677FF] hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
               >
                 <Bell className="w-5 h-5" />
+                {/* Red notification dot */}
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
               </button>
 
               {/* Notification Popover */}
@@ -166,6 +197,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
+            {/* Subtle Divider before Profile Avatar */}
+            {currentUser && <div className="h-6 w-px bg-slate-200/90 mx-0.5" />}
+
             {/* User Profile Avatar with Dropdown */}
             {currentUser && (
               <div className="relative" ref={dropdownRef}>
@@ -174,10 +208,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-1.5 p-1 rounded-full hover:ring-2 hover:ring-[#1677FF]/30 transition-all cursor-pointer"
                 >
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#102A56] to-[#1677FF] text-white flex items-center justify-center font-bold text-xs shadow-xs tracking-wider">
+                  <div className="w-9 h-9 rounded-full bg-[#0066FF] text-white flex items-center justify-center font-bold text-xs shadow-xs tracking-wider">
                     {currentUser.avatar || 'AD'}
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
                 </button>
 
                 {/* Dropdown Menu */}
@@ -324,6 +358,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               My Library
             </button>
+            <div className="px-3 py-2 flex items-center justify-between text-xs font-medium bg-[#E6F8F5] border border-[#A5E7DC] rounded-lg">
+              <span className="flex items-center gap-1.5 text-[#00A88F]">
+                <Users className="w-3.5 h-3.5 text-[#00A88F] fill-[#00A88F]" />
+                <span className="font-semibold">Registered Students</span>
+              </span>
+              <span className="font-bold text-[#00A88F]">
+                {typeof registeredStudentsCount === 'number' ? registeredStudentsCount.toLocaleString() : '0'}
+              </span>
+            </div>
             {currentUser?.role === 'admin' && (
               <button
                 type="button"

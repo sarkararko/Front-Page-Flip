@@ -71,6 +71,8 @@ public class PdfDtos {
         private boolean isSaved;
         private Integer lastPageRead;
         private Integer readProgressPercent;
+        private String cloudinaryPublicId;
+        private String cloudinarySecureUrl;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -128,5 +130,11 @@ public class PdfDtos {
 
         public Integer getReadProgressPercent() { return readProgressPercent; }
         public void setReadProgressPercent(Integer readProgressPercent) { this.readProgressPercent = readProgressPercent; }
+
+        public String getCloudinaryPublicId() { return cloudinaryPublicId; }
+        public void setCloudinaryPublicId(String cloudinaryPublicId) { this.cloudinaryPublicId = cloudinaryPublicId; }
+
+        public String getCloudinarySecureUrl() { return cloudinarySecureUrl; }
+        public void setCloudinarySecureUrl(String cloudinarySecureUrl) { this.cloudinarySecureUrl = cloudinarySecureUrl; }
     }
 }

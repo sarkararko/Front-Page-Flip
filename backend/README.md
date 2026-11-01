@@ -141,6 +141,7 @@ Database tables are automatically created and updated by Flyway on startup:
 1. `V1__init_schema.sql`: Base tables (`users`, `subjects`, `pdf_documents`, `favorites`, `read_later`, `verification_tokens`, `recently_viewed`).
 2. `V2__add_user_last_active.sql`: Adds `last_active_at` timestamp and index for live presence tracking.
 3. `V3__email_auth_and_tokens.sql`: Adds `password_reset_tokens` table and rate-limiting timestamp columns (`last_verification_sent_at`, `last_password_reset_sent_at`).
+4. `V4__add_cloudinary_fields.sql`: Adds `cloudinary_public_id` and `cloudinary_secure_url` columns and index to `pdf_documents` for persistent Cloudinary storage across Render deploys.
 
 ### Render Environment Variables
 In your Render Dashboard (**Web Service** > **Environment** tab), configure the following:
@@ -152,6 +153,11 @@ In your Render Dashboard (**Web Service** > **Environment** tab), configure the 
 | `DB_NAME` | `defaultdb` (or `frontpageflip`) | MySQL Database Name |
 | `DB_USERNAME` | `avnadmin` | Aiven MySQL User |
 | `DB_PASSWORD` | `AVNS_xxxxxxxxxxxx` | Aiven MySQL Password |
+| `CLOUDINARY_CLOUD_NAME` | `your-cloud-name` | Cloudinary Cloud Name (from Cloudinary dashboard) |
+| `CLOUDINARY_API_KEY` | `123456789012345` | Cloudinary API Key |
+| `CLOUDINARY_API_SECRET` | `your-api-secret` | Cloudinary API Secret |
+| `CLOUDINARY_FOLDER` | `front-page-flip/pdfs` | Cloudinary dedicated raw upload folder |
+| `STORAGE_TYPE` | `cloudinary` | PDF storage provider (`cloudinary` or `local`) |
 | `JWT_SECRET` | `404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970` | 256-bit HMAC-SHA256 Secret |
 | `CREATOR_EMAIL` | `arkaparna.ds@gmail.com` | Designated System Administrator Email |
 | `ADMIN_INITIAL_PASSWORD` | `YourStrongAdminPassword2026!` | Initial Admin BCrypt Seed (applied only if no password set) |

@@ -26,7 +26,7 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
         }
 
         String targetUrl = UriComponentsBuilder.fromUriString(base)
-                .fragment("auth-error?message=" + URLEncoder.encode("Google authentication was canceled or failed: " + exception.getMessage(), StandardCharsets.UTF_8))
+                .fragment("auth-error?message=" + URLEncoder.encode("Social authentication was canceled or failed: " + exception.getMessage(), StandardCharsets.UTF_8))
                 .build().toUriString();
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);

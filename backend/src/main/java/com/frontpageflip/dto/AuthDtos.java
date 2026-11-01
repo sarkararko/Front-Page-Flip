@@ -59,6 +59,15 @@ public class AuthDtos {
         public void setPassword(String password) { this.password = password; }
     }
 
+    public static class UpdateProfileRequest {
+        @NotBlank(message = "Name is required")
+        @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
+        private String name;
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+    }
+
     public static class VerificationRequest {
         private String email;
 

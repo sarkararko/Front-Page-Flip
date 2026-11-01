@@ -33,6 +33,12 @@ public class PdfDocument {
     @Column(name = "storage_key", nullable = false, length = 512)
     private String storageKey;
 
+    @Column(name = "cloudinary_public_id", length = 255)
+    private String cloudinaryPublicId;
+
+    @Column(name = "cloudinary_secure_url", length = 1024)
+    private String cloudinarySecureUrl;
+
     @Column(name = "file_name", nullable = false)
     private String fileName;
 
@@ -98,6 +104,12 @@ public class PdfDocument {
 
     public String getStorageKey() { return storageKey; }
     public void setStorageKey(String storageKey) { this.storageKey = storageKey; }
+
+    public String getCloudinaryPublicId() { return cloudinaryPublicId; }
+    public void setCloudinaryPublicId(String cloudinaryPublicId) { this.cloudinaryPublicId = cloudinaryPublicId; }
+
+    public String getCloudinarySecureUrl() { return cloudinarySecureUrl; }
+    public void setCloudinarySecureUrl(String cloudinarySecureUrl) { this.cloudinarySecureUrl = cloudinarySecureUrl; }
 
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }

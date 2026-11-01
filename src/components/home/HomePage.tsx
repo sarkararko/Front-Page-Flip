@@ -5,6 +5,7 @@ import { HeroSearch } from './HeroSearch';
 import { SubjectCard } from '../common/SubjectCard';
 import { PdfCard } from '../common/PdfCard';
 import { LearningCollectionBanner } from './LearningCollectionBanner';
+import { QuickAccessRow } from './QuickAccessRow';
 
 interface HomePageProps {
   currentUser: User;
@@ -51,12 +52,17 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      {/* 1. Hero Search Section with Live MySQL Student Count */}
+      {/* 1. Hero Search Section */}
       <HeroSearch
         userName={currentUser.name}
-        activeStudentsCount={activeStudentsCount}
-        registeredStudentsCount={registeredStudentsCount}
         onSearch={onSearch}
+      />
+
+      {/* Quick-Access Row: Popular Subjects, Latest PDFs, Study Collections */}
+      <QuickAccessRow
+        onViewPopularSubjects={onViewAllSubjects}
+        onViewLatestPdfs={onViewAllPdfs}
+        onViewStudyCollections={onGoToLibrary}
       />
 
       {/* 2. Explore Subjects Section */}

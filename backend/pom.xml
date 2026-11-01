@@ -87,6 +87,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Cloudinary Java SDK for PDF Storage -->
+        <dependency>
+            <groupId>com.cloudinary</groupId>
+            <artifactId>cloudinary-http44</artifactId>
+            <version>1.38.0</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

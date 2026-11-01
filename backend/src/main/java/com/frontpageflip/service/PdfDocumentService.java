@@ -12,12 +12,15 @@ import com.frontpageflip.repository.ReadLaterRepository;
 import com.frontpageflip.repository.RecentlyViewedRepository;
 import com.frontpageflip.repository.SubjectRepository;
 import com.frontpageflip.repository.UserRepository;
+import com.frontpageflip.service.CloudinaryService.CloudinaryUploadResult;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.format.DateTimeFormatter;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +35,23 @@ public class PdfDocumentService {
     private final RecentlyViewedRepository recentlyViewedRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final CloudinaryService cloudinaryService;
+
+    public PdfDocumentService(PdfDocumentRepository pdfRepository,
+                              SubjectRepository subjectRepository,
+                              ReadLaterRepository readLaterRepository,
+                              RecentlyViewedRepository recentlyViewedRepository,
+                              UserRepository userRepository,
+                              FileStorageService fileStorageService,
+                              CloudinaryService cloudinaryService) {
+        this.pdfRepository = pdfRepository;
+        this.subjectRepository = subjectRepository;
+        this.readLaterRepository = readLaterRepository;
+        this.recentlyViewedRepository = recentlyViewedRepository;
+        this.userRepository = userRepository;
+        this.fileStorageService = fileStorageService;
+        this.cloudinaryService = cloudinaryService;
+    }
 
     public PdfDocumentService(PdfDocumentRepository pdfRepository,
                               SubjectRepository subjectRepository,
@@ -39,12 +59,7 @@ public class PdfDocumentService {
                               RecentlyViewedRepository recentlyViewedRepository,
                               UserRepository userRepository,
                               FileStorageService fileStorageService) {
-        this.pdfRepository = pdfRepository;
-        this.subjectRepository = subjectRepository;
-        this.readLaterRepository = readLaterRepository;
-        this.recentlyViewedRepository = recentlyViewedRepository;
-        this.userRepository = userRepository;
-        this.fileStorageService = fileStorageService;
+        this(pdfRepository, subjectRepository, readLaterRepository, recentlyViewedRepository, userRepository, fileStorageService, null);
     }
 
     public List<PdfResponse> getPdfsBySubject(String subjectId, String currentUserId) {
@@ -71,6 +86,16 @@ public class PdfDocumentService {
     public Resource getPdfFileResource(String id) {
         PdfDocument doc = pdfRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PDF document not found with ID: " + id));
+
+        // If stored in Cloudinary, stream from Cloudinary secure URL
+        if (doc.getCloudinarySecureUrl() != null && !doc.getCloudinarySecureUrl().isBlank()) {
+            try {
+                return new UrlResource(URI.create(doc.getCloudinarySecureUrl()));
+            } catch (MalformedURLException e) {
+                throw new BadRequestException("Invalid Cloudinary PDF resource URL: " + e.getMessage());
+            }
+        }
+
         return fileStorageService.loadPdfAsResource(doc.getStorageKey());
     }
 
@@ -91,9 +116,21 @@ public class PdfDocumentService {
 
         User admin = userRepository.findById(adminUserId).orElse(null);
 
-        // Store file physically & validate genuine PDF
-        String storageKey = fileStorageService.storePdf(file);
+        String storageKey;
+        String cloudinaryPublicId = null;
+        String cloudinarySecureUrl = null;
         String formattedSize = FileStorageService.formatFileSize(file.getSize());
+
+        // Check if Cloudinary is configured (Render Production)
+        if (cloudinaryService != null && cloudinaryService.isConfigured()) {
+            CloudinaryUploadResult uploadResult = cloudinaryService.uploadPdf(file, file.getOriginalFilename());
+            cloudinaryPublicId = uploadResult.getPublicId();
+            cloudinarySecureUrl = uploadResult.getSecureUrl();
+            storageKey = uploadResult.getPublicId();
+        } else {
+            // Local disk fallback
+            storageKey = fileStorageService.storePdf(file);
+        }
 
         PdfDocument doc = new PdfDocument();
         doc.setId("pdf_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
@@ -104,6 +141,8 @@ public class PdfDocumentService {
         doc.setSemester(semester != null && !semester.isBlank() ? semester.trim() : "Semester 1");
         doc.setDescription(description);
         doc.setStorageKey(storageKey);
+        doc.setCloudinaryPublicId(cloudinaryPublicId);
+        doc.setCloudinarySecureUrl(cloudinarySecureUrl);
         doc.setFileName(file.getOriginalFilename() != null ? file.getOriginalFilename() : "document.pdf");
         doc.setFileSize(formattedSize);
         doc.setPageCount(Math.max(1, pageCount));
@@ -155,9 +194,21 @@ public class PdfDocumentService {
         PdfDocument doc = pdfRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PDF document not found with ID: " + id));
 
-        String storageKey = doc.getStorageKey();
+        // 1. If stored in Cloudinary, delete from Cloudinary first.
+        // If Cloudinary delete fails, an exception is thrown and the database record is NOT deleted.
+        if (doc.getCloudinaryPublicId() != null && !doc.getCloudinaryPublicId().isBlank()) {
+            if (cloudinaryService != null) {
+                cloudinaryService.deletePdf(doc.getCloudinaryPublicId());
+            }
+        }
+
+        // 2. If legacy local file existed, delete it
+        if (doc.getStorageKey() != null && !doc.getStorageKey().equals(doc.getCloudinaryPublicId())) {
+            fileStorageService.deletePdf(doc.getStorageKey());
+        }
+
+        // 3. Remove database record safely
         pdfRepository.delete(doc);
-        fileStorageService.deletePdf(storageKey);
     }
 
     public List<PdfResponse> searchPdfs(String query, String currentUserId) {
@@ -185,6 +236,8 @@ public class PdfDocumentService {
         resp.setCreatedAt(doc.getCreatedAt().toString());
         resp.setViewUrl("/api/pdfs/" + doc.getId() + "/view");
         resp.setDownloadUrl("/api/pdfs/" + doc.getId() + "/download");
+        resp.setCloudinaryPublicId(doc.getCloudinaryPublicId());
+        resp.setCloudinarySecureUrl(doc.getCloudinarySecureUrl());
 
         if (currentUserId != null) {
             resp.setSaved(readLaterRepository.existsByUserIdAndPdfId(currentUserId, doc.getId()));

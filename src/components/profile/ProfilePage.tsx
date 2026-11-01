@@ -38,12 +38,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const updated = { ...currentUser, name: name.trim() };
-    ApiService.updateUser(updated);
+    const newName = name.trim();
+    const initials = newName.slice(0, 2).toUpperCase() || 'ST';
+    const updated = { ...currentUser, name: newName, avatar: initials };
+    await ApiService.updateUser(updated);
     onUpdateUser(updated);
     setIsEditing(false);
     setToastMsg('Profile updated successfully.');

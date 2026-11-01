@@ -232,11 +232,11 @@ export const ApiService = {
 
   // --- SOCIAL LOGIN (Student role strictly enforced) ---
   async socialLogin(provider: 'google' | 'github'): Promise<{ user: User; token: string }> {
-    if (provider === 'google' && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
       const backendRoot = getBackendBaseUrl() || 'https://frontpageflip-backend.onrender.com';
-      // In live production, route directly to Spring Boot Google OAuth 2.0 / OpenID Connect
+      // In live production, route directly to Spring Boot OAuth 2.0 endpoint (/oauth2/authorization/{provider})
       if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        window.location.href = `${backendRoot}/oauth2/authorization/google`;
+        window.location.href = `${backendRoot}/oauth2/authorization/${provider}`;
         return new Promise(() => {}); // Wait for redirect
       }
     }
@@ -485,8 +485,50 @@ export const ApiService = {
     return StorageService.getCurrentUser();
   },
 
-  updateUser(user: User): User {
+  async fetchCurrentUserProfile(): Promise<User | null> {
+    const token = StorageService.getSessionToken();
+    if (!token) return StorageService.getCurrentUser();
+
+    try {
+      const res = await apiFetch<any>('/auth/me');
+      if (res && res.id) {
+        const local = StorageService.getCurrentUser();
+        const role = res.role ? String(res.role).toLowerCase() : (local?.role || 'student');
+        const updated: User = {
+          id: res.id,
+          name: res.name || local?.name || '',
+          email: res.email || local?.email || '',
+          role: role === 'admin' ? 'admin' : 'student',
+          emailVerified: res.emailVerified !== false,
+          createdAt: local?.createdAt || new Date().toISOString(),
+          provider: local?.provider || 'email',
+          avatar: res.name ? res.name.slice(0, 2).toUpperCase() : (local?.avatar || 'AD'),
+        };
+        StorageService.updateUser(updated);
+        StorageService.setCurrentUser(updated);
+        return updated;
+      }
+    } catch {
+      // Backend unavailable or running in offline mode
+    }
+    return StorageService.getCurrentUser();
+  },
+
+  async updateUser(user: User): Promise<User> {
     StorageService.updateUser(user);
+    StorageService.setCurrentUser(user);
+
+    try {
+      if (user.name && user.name.trim()) {
+        await apiFetch<any>('/auth/me', {
+          method: 'PUT',
+          body: JSON.stringify({ name: user.name.trim() }),
+        });
+      }
+    } catch {
+      // Backend offline fallback
+    }
+
     return user;
   },
 
