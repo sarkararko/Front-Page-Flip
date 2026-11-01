@@ -1,5 +1,7 @@
 package com.frontpageflip.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +15,8 @@ import java.util.List;
 
 @Configuration
 public class OAuth2Config {
+
+    private static final Logger log = LoggerFactory.getLogger(OAuth2Config.class);
 
     @Value("${app.oauth.google.client-id:${GOOGLE_CLIENT_ID:}}")
     private String googleClientId;
@@ -32,6 +36,8 @@ public class OAuth2Config {
 
         // 1. Google OAuth 2.0 / OpenID Connect Provider
         if (googleClientId != null && !googleClientId.isBlank() && !googleClientId.contains("placeholder")) {
+            log.info("Google OAuth provider configured successfully with Client ID prefix: {}***",
+                    googleClientId.trim().length() > 12 ? googleClientId.trim().substring(0, 12) : "valid-id");
             registrations.add(CommonOAuth2Provider.GOOGLE.getBuilder("google")
                     .clientId(googleClientId.trim())
                     .clientSecret(googleClientSecret != null ? googleClientSecret.trim() : "")
@@ -39,7 +45,7 @@ public class OAuth2Config {
                     .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
                     .build());
         } else {
-            // Provide placeholder registration so Spring Boot doesn't fail on startup before user configures env vars in Render
+            log.warn("GOOGLE_CLIENT_ID is not configured in Render environment variables. Falling back to placeholder registration.");
             registrations.add(CommonOAuth2Provider.GOOGLE.getBuilder("google")
                     .clientId("placeholder-google-client-id.apps.googleusercontent.com")
                     .clientSecret("placeholder-google-client-secret")
@@ -50,6 +56,8 @@ public class OAuth2Config {
 
         // 2. GitHub OAuth 2.0 Provider
         if (githubClientId != null && !githubClientId.isBlank() && !githubClientId.contains("placeholder")) {
+            log.info("GitHub OAuth provider configured successfully with Client ID prefix: {}***",
+                    githubClientId.trim().length() > 8 ? githubClientId.trim().substring(0, 8) : "valid-id");
             registrations.add(CommonOAuth2Provider.GITHUB.getBuilder("github")
                     .clientId(githubClientId.trim())
                     .clientSecret(githubClientSecret != null ? githubClientSecret.trim() : "")
@@ -57,7 +65,7 @@ public class OAuth2Config {
                     .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
                     .build());
         } else {
-            // Provide placeholder registration so Spring Boot doesn't fail on startup before user configures env vars in Render
+            log.warn("GITHUB_CLIENT_ID is not configured in Render environment variables. Falling back to placeholder registration.");
             registrations.add(CommonOAuth2Provider.GITHUB.getBuilder("github")
                     .clientId("placeholder-github-client-id")
                     .clientSecret("placeholder-github-client-secret")

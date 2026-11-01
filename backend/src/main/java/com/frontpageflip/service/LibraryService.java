@@ -7,6 +7,7 @@ import com.frontpageflip.exception.BadRequestException;
 import com.frontpageflip.exception.ResourceNotFoundException;
 import com.frontpageflip.model.*;
 import com.frontpageflip.repository.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ public class LibraryService {
     private final PdfDocumentService pdfService;
     private final SubjectService subjectService;
 
+    @Autowired
     public LibraryService(FavoriteRepository favoriteRepository,
                           ReadLaterRepository readLaterRepository,
                           RecentlyViewedRepository recentlyViewedRepository,

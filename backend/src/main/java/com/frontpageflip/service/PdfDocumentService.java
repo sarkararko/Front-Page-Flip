@@ -13,6 +13,7 @@ import com.frontpageflip.repository.RecentlyViewedRepository;
 import com.frontpageflip.repository.SubjectRepository;
 import com.frontpageflip.repository.UserRepository;
 import com.frontpageflip.service.CloudinaryService.CloudinaryUploadResult;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class PdfDocumentService {
     private final FileStorageService fileStorageService;
     private final CloudinaryService cloudinaryService;
 
+    @Autowired
     public PdfDocumentService(PdfDocumentRepository pdfRepository,
                               SubjectRepository subjectRepository,
                               ReadLaterRepository readLaterRepository,
@@ -51,15 +53,6 @@ public class PdfDocumentService {
         this.userRepository = userRepository;
         this.fileStorageService = fileStorageService;
         this.cloudinaryService = cloudinaryService;
-    }
-
-    public PdfDocumentService(PdfDocumentRepository pdfRepository,
-                              SubjectRepository subjectRepository,
-                              ReadLaterRepository readLaterRepository,
-                              RecentlyViewedRepository recentlyViewedRepository,
-                              UserRepository userRepository,
-                              FileStorageService fileStorageService) {
-        this(pdfRepository, subjectRepository, readLaterRepository, recentlyViewedRepository, userRepository, fileStorageService, null);
     }
 
     public List<PdfResponse> getPdfsBySubject(String subjectId, String currentUserId) {
