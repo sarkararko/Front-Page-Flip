@@ -11,22 +11,32 @@ import {
   ArrowRight,
   Star,
   Folder,
+  MoreVertical,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { Subject } from '../../types';
 
 interface SubjectCardProps {
   subject: Subject;
   isFavorite?: boolean;
+  isAdmin?: boolean;
   onToggleFavorite?: (subjectId: string, e: React.MouseEvent) => void;
+  onEdit?: (subject: Subject) => void;
+  onDelete?: (subject: Subject) => void;
   onClick?: (subject: Subject) => void;
 }
 
 export const SubjectCard: React.FC<SubjectCardProps> = ({
   subject,
   isFavorite = false,
+  isAdmin = false,
   onToggleFavorite,
+  onEdit,
+  onDelete,
   onClick,
 }) => {
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   // Map icon names to Lucide icons
   const renderIcon = () => {
     const iconClass = 'w-6 h-6';
@@ -79,20 +89,83 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
             {renderIcon()}
           </div>
 
-          {onToggleFavorite && (
-            <button
-              type="button"
-              onClick={(e) => onToggleFavorite(subject.id, e)}
-              title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-              className="p-1.5 rounded-lg text-slate-300 hover:text-amber-500 hover:bg-slate-50 transition-colors"
-            >
-              <Star
-                className={`w-4 h-4 transition-colors ${
-                  isFavorite ? 'fill-amber-400 text-amber-500' : 'text-slate-300 hover:text-slate-400'
-                }`}
-              />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {onToggleFavorite && (
+              <button
+                type="button"
+                onClick={(e) => onToggleFavorite(subject.id, e)}
+                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                className="p-1.5 rounded-lg text-slate-300 hover:text-amber-500 hover:bg-slate-50 transition-colors"
+              >
+                <Star
+                  className={`w-4 h-4 transition-colors ${
+                    isFavorite ? 'fill-amber-400 text-amber-500' : 'text-slate-300 hover:text-slate-400'
+                  }`}
+                />
+              </button>
+            )}
+
+            {isAdmin && (onEdit || onDelete) && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen(!isMenuOpen);
+                  }}
+                  title="Subject Actions"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#102A56] hover:bg-slate-100 transition-colors"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {isMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                      }}
+                    />
+                    <div
+                      className="absolute right-0 top-full mt-1 w-40 bg-white border border-[#E2E8F0] rounded-xl shadow-xl py-1.5 z-40 text-left animate-in fade-in zoom-in-95 duration-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {onEdit && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMenuOpen(false);
+                            onEdit(subject);
+                          }}
+                          className="w-full px-3 py-1.5 text-xs font-semibold text-[#102A56] hover:bg-blue-50 hover:text-[#1677FF] flex items-center gap-2 transition-colors"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          <span>Edit Subject</span>
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMenuOpen(false);
+                            onDelete(subject);
+                          }}
+                          className="w-full px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                          <span>Delete Subject</span>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Center Details */}

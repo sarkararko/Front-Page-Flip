@@ -1,23 +1,30 @@
-import React from 'react';
-import { Bookmark, ArrowRight, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bookmark, ArrowRight, FileText, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { PdfResource } from '../../types';
 
 interface PdfCardProps {
   pdf: PdfResource;
   isReadLater?: boolean;
+  isAdmin?: boolean;
   readingProgress?: { lastPageRead: number; totalPages: number };
   onToggleReadLater?: (pdfId: string, e: React.MouseEvent) => void;
+  onEdit?: (pdf: PdfResource) => void;
+  onDelete?: (pdf: PdfResource) => void;
   onViewPdf: (pdf: PdfResource) => void;
 }
 
 export const PdfCard: React.FC<PdfCardProps> = ({
   pdf,
   isReadLater = false,
+  isAdmin = false,
   readingProgress,
   onToggleReadLater,
+  onEdit,
+  onDelete,
   onViewPdf,
 }) => {
-  const [imageError, setImageError] = React.useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Render authentic styled thumbnail according to custom image or thumbnailStyle
   const renderThumbnail = () => {
@@ -124,21 +131,84 @@ export const PdfCard: React.FC<PdfCardProps> = ({
             <span>PDF</span>
           </div>
 
-          {/* Read Later Bookmark Button on top-right */}
-          {onToggleReadLater && (
-            <button
-              type="button"
-              onClick={(e) => onToggleReadLater(pdf.id, e)}
-              title={isReadLater ? 'Remove from Read Later' : 'Save to Read Later'}
-              className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/95 backdrop-blur-xs text-slate-500 hover:text-[#1677FF] hover:bg-white shadow-xs transition-colors"
-            >
-              <Bookmark
-                className={`w-4 h-4 transition-colors ${
-                  isReadLater ? 'fill-[#1677FF] text-[#1677FF]' : 'text-slate-400'
-                }`}
-              />
-            </button>
-          )}
+          {/* Top-Right Action Controls (Read Later Bookmark & Admin Menu) */}
+          <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+            {onToggleReadLater && (
+              <button
+                type="button"
+                onClick={(e) => onToggleReadLater(pdf.id, e)}
+                title={isReadLater ? 'Remove from Read Later' : 'Save to Read Later'}
+                className="p-1.5 rounded-lg bg-white/95 backdrop-blur-xs text-slate-500 hover:text-[#1677FF] hover:bg-white shadow-xs transition-colors"
+              >
+                <Bookmark
+                  className={`w-4 h-4 transition-colors ${
+                    isReadLater ? 'fill-[#1677FF] text-[#1677FF]' : 'text-slate-400'
+                  }`}
+                />
+              </button>
+            )}
+
+            {isAdmin && (onEdit || onDelete) && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen(!isMenuOpen);
+                  }}
+                  title="PDF Actions"
+                  className="p-1.5 rounded-lg bg-white/95 backdrop-blur-xs text-slate-600 hover:text-[#102A56] hover:bg-white shadow-xs transition-colors"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {isMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                      }}
+                    />
+                    <div
+                      className="absolute right-0 top-full mt-1 w-36 bg-white border border-[#E2E8F0] rounded-xl shadow-xl py-1.5 z-40 text-left animate-in fade-in zoom-in-95 duration-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {onEdit && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMenuOpen(false);
+                            onEdit(pdf);
+                          }}
+                          className="w-full px-3 py-1.5 text-xs font-semibold text-[#102A56] hover:bg-blue-50 hover:text-[#1677FF] flex items-center gap-2 transition-colors"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          <span>Edit PDF</span>
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMenuOpen(false);
+                            onDelete(pdf);
+                          }}
+                          className="w-full px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                          <span>Delete PDF</span>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Title */}

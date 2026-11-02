@@ -104,7 +104,7 @@ public class PdfDocumentService {
         return fileStorageService.loadPdfAsResource(doc.getStorageKey());
     }
 
-    private Subject resolveOrCreateSubject(String subjectId, String subjectName) {
+    private Subject resolveExistingSubject(String subjectId, String subjectName) {
         Subject subject = null;
         if (subjectId != null && !subjectId.isBlank()) {
             subject = subjectRepository.findById(subjectId).orElse(null);
@@ -124,24 +124,9 @@ public class PdfDocumentService {
                     subject = subjectRepository.findBySlug(potentialSlug).orElse(null);
                 }
             }
-            if (subject == null) {
-                subject = new Subject();
-                subject.setId("sub_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-                subject.setName(cleanName);
-                String slug = cleanName.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
-                if (slug.isBlank() || subjectRepository.existsBySlug(slug)) {
-                    slug = (slug.isBlank() ? "subject" : slug) + "-" + UUID.randomUUID().toString().substring(0, 6);
-                }
-                subject.setSlug(slug);
-                subject.setIcon("book");
-                subject.setIconColor("#1677FF");
-                subject.setDescription("Course notes and study materials for " + cleanName);
-                subject.setPdfCount(0);
-                subject = subjectRepository.save(subject);
-            }
         }
         if (subject == null) {
-            throw new BadRequestException("Subject is required. Please type or select a subject.");
+            throw new BadRequestException("Subject name does not match an existing subject. Please select a valid subject.");
         }
         return subject;
     }
@@ -189,7 +174,7 @@ public class PdfDocumentService {
                                  boolean downloadAllowed,
                                  String adminUserId) {
 
-        Subject subject = resolveOrCreateSubject(subjectId, subjectName);
+        Subject subject = resolveExistingSubject(subjectId, subjectName);
 
         User admin = userRepository.findById(adminUserId).orElse(null);
 
@@ -299,7 +284,7 @@ public class PdfDocumentService {
                 .orElseThrow(() -> new ResourceNotFoundException("PDF document not found with ID: " + id));
 
         if ((subjectId != null && !subjectId.isBlank()) || (subjectName != null && !subjectName.isBlank())) {
-            Subject subject = resolveOrCreateSubject(subjectId, subjectName);
+            Subject subject = resolveExistingSubject(subjectId, subjectName);
             doc.setSubject(subject);
         }
 

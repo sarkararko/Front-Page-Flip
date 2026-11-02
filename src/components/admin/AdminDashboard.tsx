@@ -20,6 +20,11 @@ import {
 } from 'lucide-react';
 import { User, Subject, PdfResource } from '../../types';
 import { ApiService } from '../../services/api';
+import {
+  IconPicker,
+  ColorPicker,
+  renderSubjectIcon,
+} from '../common/SubjectIconAndColorPickers';
 
 interface AdminDashboardProps {
   currentUser: User;
@@ -48,14 +53,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [editingPdf, setEditingPdf] = useState<PdfResource | null>(null);
-  const [pdfTitle, setPdfTitle] = useState('');
-  const [pdfSubjectName, setPdfSubjectName] = useState('');
-  const [pdfTopic, setPdfTopic] = useState('');
-  const [pdfCourse, setPdfCourse] = useState('B.Tech / B.Sc');
+  const [pdfSubjectId, setPdfSubjectId] = useState('');
+  const [pdfSubjectWarning, setPdfSubjectWarning] = useState<string | null>(null);
   const [pdfSemester, setPdfSemester] = useState('Semester 1');
   const [pdfDescription, setPdfDescription] = useState('');
-  const [pdfPageCount, setPdfPageCount] = useState(36);
-  const [pdfFileSize, setPdfFileSize] = useState('2.4 MB');
+  const [pdfPageCount, setPdfPageCount] = useState(1);
+  const [pdfFileSize, setPdfFileSize] = useState('');
   const [pdfDownloadAllowed, setPdfDownloadAllowed] = useState(true);
   const [pdfIsPublished, setPdfIsPublished] = useState(true);
   const [pdfFileData, setPdfFileData] = useState<string | null>(null);
@@ -159,16 +162,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // --- PDF MANAGEMENT ---
   const handleOpenPdfModal = (pdf?: PdfResource) => {
+    setPdfSubjectWarning(null);
     if (pdf) {
       setEditingPdf(pdf);
-      setPdfTitle(pdf.title);
-      setPdfSubjectName(pdf.subjectName || '');
-      setPdfTopic(pdf.topic);
-      setPdfCourse(pdf.course || 'B.Tech / B.Sc');
+      setPdfSubjectId(pdf.subjectId || '');
       setPdfSemester(pdf.semester || 'Semester 1');
       setPdfDescription(pdf.description || '');
-      setPdfPageCount(pdf.pageCount);
-      setPdfFileSize(pdf.fileSize);
+      setPdfPageCount(pdf.pageCount || 1);
+      setPdfFileSize(pdf.fileSize || '');
       setPdfDownloadAllowed(pdf.downloadAllowed);
       setPdfIsPublished(pdf.isPublished);
       setPdfFileData(pdf.fileData || null);
@@ -180,14 +181,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setRemoveThumbnail(false);
     } else {
       setEditingPdf(null);
-      setPdfTitle('');
-      setPdfSubjectName('');
-      setPdfTopic('');
-      setPdfCourse('B.Tech / B.Sc');
+      setPdfSubjectId(subjects[0]?.id || '');
       setPdfSemester('Semester 1');
       setPdfDescription('');
-      setPdfPageCount(24);
-      setPdfFileSize('2.4 MB');
+      setPdfPageCount(1);
+      setPdfFileSize('');
       setPdfDownloadAllowed(true);
       setPdfIsPublished(true);
       setPdfFileData(null);
@@ -271,10 +269,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setPdfFileSize(formattedSize);
     setPdfFileName(file.name);
 
-    if (!pdfTitle.trim()) {
-      setPdfTitle(file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '));
-    }
-
     const reader = new FileReader();
     reader.onload = () => {
       setPdfFileData(reader.result as string);
@@ -290,44 +284,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleSavePdf = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanSubject = pdfSubjectName.trim();
-    if (!pdfTitle.trim() || !cleanSubject || !pdfTopic.trim()) {
-      showToast('error', 'Title, subject, and topic are required.');
+
+    // 1. Validate PDF file
+    if (!editingPdf && !pdfFileData && !pdfFileName) {
+      showToast('error', 'Please upload a PDF file.');
       return;
     }
 
-    // Resolve or automatically link the subject
-    let matchedSub = subjects.find(
-      (s) => s.name.trim().toLowerCase() === cleanSubject.toLowerCase()
+    // 2. Validate Subject strictly against existing subjects
+    const cleanSubjectId = (pdfSubjectId || '').trim();
+    const matchedSub = subjects.find(
+      (s) =>
+        s.id === cleanSubjectId ||
+        (s.name && s.name.trim().toLowerCase() === cleanSubjectId.toLowerCase()) ||
+        (s.slug && s.slug.toLowerCase() === cleanSubjectId.toLowerCase())
     );
 
     if (!matchedSub) {
-      try {
-        const newSlug =
-          cleanSubject
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/(^-|-$)/g, '') || `sub-${Date.now()}`;
-        matchedSub = await ApiService.createSubject({
-          name: cleanSubject,
-          slug: newSlug,
-          icon: 'book',
-          iconColor: '#1677FF',
-          iconBgColor: '#EFF6FF',
-          pdfCount: 0,
-          description: `Course notes and study materials for ${cleanSubject}.`,
-          topics: [pdfTopic.trim()],
-        });
-        onRefreshData();
-      } catch (subErr) {
-        console.warn('Subject auto-creation fallback:', subErr);
-      }
+      const warningText = 'Subject name does not match an existing subject. Please select a valid subject.';
+      setPdfSubjectWarning(warningText);
+      showToast('error', warningText);
+      return;
     }
 
-    const subId = matchedSub
-      ? matchedSub.id
-      : editingPdf?.subjectId || `sub-${cleanSubject.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-    const subName = matchedSub ? matchedSub.name : cleanSubject;
+    setPdfSubjectWarning(null);
+
+    // Derived values: title defaults to PDF filename without .pdf extension
+    const baseTitle = pdfFileName
+      ? pdfFileName.replace(/\.pdf$/i, '').replace(/[_-]/g, ' ').trim()
+      : '';
+    const finalTitle = editingPdf?.title || baseTitle || 'Educational PDF Document';
+    const subId = matchedSub.id;
+    const subName = matchedSub.name;
     const effectiveThumbnailUrl = removeThumbnail
       ? undefined
       : (pdfThumbnailUrl || (editingPdf ? editingPdf.thumbnailUrl : undefined));
@@ -336,45 +324,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (editingPdf) {
         await ApiService.updatePdf({
           ...editingPdf,
-          title: pdfTitle.trim(),
+          title: finalTitle,
           subjectId: subId,
           subjectName: subName,
-          topic: pdfTopic.trim(),
-          course: pdfCourse.trim(),
+          topic: matchedSub.name,
+          course: editingPdf.course || 'B.Tech / B.Sc',
           semester: pdfSemester.trim(),
           description: pdfDescription.trim(),
-          pageCount: Number(pdfPageCount),
-          fileSize: pdfFileSize,
+          pageCount: Math.max(1, Number(pdfPageCount) || 1),
+          fileSize: pdfFileSize || editingPdf.fileSize || '1.0 MB',
           downloadAllowed: pdfDownloadAllowed,
           isPublished: pdfIsPublished,
           fileData: pdfFileData || editingPdf.fileData,
           fileName: pdfFileName || editingPdf.fileName,
           thumbnailUrl: effectiveThumbnailUrl,
         });
-        showToast('success', `PDF resource "${pdfTitle}" updated.`);
+        showToast('success', `PDF resource "${finalTitle}" updated.`);
       } else {
         await ApiService.createPdf({
-          title: pdfTitle.trim(),
+          title: finalTitle,
           subjectId: subId,
           subjectName: subName,
-          topic: pdfTopic.trim(),
-          course: pdfCourse.trim(),
+          topic: matchedSub.name,
+          course: 'B.Tech / B.Sc',
           semester: pdfSemester.trim(),
           description: pdfDescription.trim(),
-          pageCount: Number(pdfPageCount),
-          fileSize: pdfFileSize,
+          pageCount: Math.max(1, Number(pdfPageCount) || 1),
+          fileSize: pdfFileSize || '1.0 MB',
           downloadAllowed: pdfDownloadAllowed,
           isPublished: pdfIsPublished,
           fileData: pdfFileData || undefined,
-          fileName: pdfFileName || undefined,
+          fileName: pdfFileName || 'document.pdf',
           thumbnailUrl: effectiveThumbnailUrl,
           thumbnailStyle: 'standard',
           contentPages: [
             {
               pageNumber: 1,
-              title: `${pdfTopic} — Fundamental Concepts`,
+              title: `${finalTitle} — Fundamental Concepts`,
               section: 'Unit 1: Foundations',
-              summary: pdfDescription || 'Introductory lecture notes covering critical principles.',
+              summary: pdfDescription || `Comprehensive lecture notes for ${matchedSub.name}.`,
               keyPoints: [
                 'Comprehensive review of foundational definitions and axioms.',
                 'Step-by-step mathematical proofs with parameter constraints.',
@@ -388,7 +376,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             },
           ],
         });
-        showToast('success', `New PDF notes "${pdfTitle}" uploaded and published!`);
+        showToast('success', `New PDF notes "${finalTitle}" uploaded and published!`);
       }
       setIsPdfModalOpen(false);
       onRefreshData();
@@ -831,39 +819,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#102A56] mb-1">Icon Type</label>
-                  <select
+                  <label className="block font-bold text-[#102A56] mb-1">
+                    Icon <span className="text-slate-400 font-normal text-[11px]">(Visual Preview)</span>
+                  </label>
+                  <IconPicker
                     value={subjectIcon}
-                    onChange={(e) => setSubjectIcon(e.target.value)}
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden"
-                  >
-                    <option value="sigma">Sigma (Math)</option>
-                    <option value="atom">Atom (Physics)</option>
-                    <option value="flask">Flask (Chemistry)</option>
-                    <option value="laptop">Laptop (Computer Science)</option>
-                    <option value="zap">Zap (Electrical)</option>
-                    <option value="cog">Cog (Mechanical)</option>
-                    <option value="building">Building (Civil)</option>
-                    <option value="book">Book (English / Humanities)</option>
-                  </select>
+                    themeColor={subjectColor}
+                    onChange={setSubjectIcon}
+                  />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#102A56] mb-1">Color Theme</label>
-                  <select
+                  <label className="block font-bold text-[#102A56] mb-1">
+                    Theme Color <span className="text-slate-400 font-normal text-[11px]">(Color Swatch)</span>
+                  </label>
+                  <ColorPicker
                     value={subjectColor}
-                    onChange={(e) => setSubjectColor(e.target.value)}
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden"
-                  >
-                    <option value="#1677FF">Blue</option>
-                    <option value="#0DB7A5">Teal</option>
-                    <option value="#4F46E5">Indigo</option>
-                    <option value="#D97706">Amber</option>
-                    <option value="#059669">Emerald</option>
-                    <option value="#DB2777">Pink</option>
-                  </select>
+                    onChange={setSubjectColor}
+                  />
+                </div>
+              </div>
+
+              {/* Live Subject Card Header Preview */}
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs"
+                  style={{ backgroundColor: '#EFF6FF' }}
+                >
+                  {renderSubjectIcon(subjectIcon, subjectColor, 'w-5 h-5')}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-[#102A56] truncate">
+                    {subjectName.trim() || 'Subject Name Preview'}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span
+                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold"
+                      style={{ backgroundColor: '#EFF6FF', color: subjectColor }}
+                    >
+                      Theme Accent Preview
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1031,51 +1029,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 )}
               </div>
 
+              {/* 3. Subject (Required - Must select from existing subjects) */}
               <div>
-                <label className="block font-bold text-[#102A56] mb-1">Document Title *</label>
-                <input
-                  type="text"
+                <label className="block font-bold text-[#102A56] mb-1">
+                  Subject <span className="text-red-500">*</span>
+                </label>
+                <select
                   required
-                  value={pdfTitle}
-                  onChange={(e) => setPdfTitle(e.target.value)}
-                  placeholder="e.g. Operating Systems – Complete Notes"
-                  className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF]"
-                />
+                  value={pdfSubjectId}
+                  onChange={(e) => {
+                    setPdfSubjectId(e.target.value);
+                    setPdfSubjectWarning(null);
+                  }}
+                  className={`w-full p-2.5 bg-[#F8FAFC] border rounded-xl font-medium outline-hidden transition-colors ${
+                    pdfSubjectWarning
+                      ? 'border-red-400 focus:border-red-500 bg-red-50/30'
+                      : 'border-[#CBD5E1] focus:border-[#1677FF]'
+                  }`}
+                >
+                  <option value="">Select an existing subject...</option>
+                  {subjects.map((sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.name}
+                    </option>
+                  ))}
+                </select>
+                {pdfSubjectWarning && (
+                  <p className="text-red-600 text-[11px] font-semibold mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    <span>{pdfSubjectWarning}</span>
+                  </p>
+                )}
+                {subjects.length === 0 && (
+                  <p className="text-amber-600 text-[11px] mt-1">
+                    No subjects exist yet. Please create a subject first before uploading PDFs.
+                  </p>
+                )}
               </div>
 
+              {/* 4. Semester & 5. Page Count */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#102A56] mb-1">Subject *</label>
-                  <input
-                    type="text"
-                    required
-                    value={pdfSubjectName}
-                    onChange={(e) => setPdfSubjectName(e.target.value)}
-                    placeholder="e.g. Data Structures & Algorithms"
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-[#102A56] mb-1">Topic *</label>
-                  <input
-                    type="text"
-                    required
-                    value={pdfTopic}
-                    onChange={(e) => setPdfTopic(e.target.value)}
-                    placeholder="e.g. Memory Management"
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-[#102A56] mb-1">Semester</label>
+                  <label className="block font-bold text-[#102A56] mb-1">
+                    Semester <span className="text-red-500">*</span>
+                  </label>
                   <select
+                    required
                     value={pdfSemester}
                     onChange={(e) => setPdfSemester(e.target.value)}
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden"
+                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF]"
                   >
                     <option value="Semester 1">Semester 1</option>
                     <option value="Semester 2">Semester 2</option>
@@ -1090,75 +1092,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#102A56] mb-1">Course</label>
-                  <input
-                    type="text"
-                    value={pdfCourse}
-                    onChange={(e) => setPdfCourse(e.target.value)}
-                    placeholder="e.g. B.Tech Computer Science"
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-[#102A56] mb-1">Page Count</label>
+                  <label className="block font-bold text-[#102A56] mb-1">
+                    Page Count <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="number"
                     min={1}
+                    required
                     value={pdfPageCount}
                     onChange={(e) => setPdfPageCount(parseInt(e.target.value) || 1)}
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-[#102A56] mb-1">File Size</label>
-                  <input
-                    type="text"
-                    value={pdfFileSize}
-                    onChange={(e) => setPdfFileSize(e.target.value)}
-                    placeholder="e.g. 2.4 MB"
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden"
+                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF]"
                   />
                 </div>
               </div>
 
+              {/* 6. Description (Optional) */}
               <div>
-                <label className="block font-bold text-[#102A56] mb-1">Description / Syllabus</label>
+                <label className="block font-bold text-[#102A56] mb-1">
+                  Description <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
+                </label>
                 <textarea
                   rows={3}
                   value={pdfDescription}
                   onChange={(e) => setPdfDescription(e.target.value)}
-                  placeholder="Summary of lecture notes included in this document..."
-                  className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden"
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                <div>
-                  <p className="font-bold text-[#102A56]">Permit Student Download</p>
-                  <p className="text-[11px] text-slate-500">Allow students to save document offline</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={pdfDownloadAllowed}
-                  onChange={(e) => setPdfDownloadAllowed(e.target.checked)}
-                  className="w-4 h-4 text-[#1677FF] rounded"
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                <div>
-                  <p className="font-bold text-[#102A56]">Publish Status</p>
-                  <p className="text-[11px] text-slate-500">Visible to students immediately</p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={pdfIsPublished}
-                  onChange={(e) => setPdfIsPublished(e.target.checked)}
-                  className="w-4 h-4 text-[#1677FF] rounded"
+                  placeholder="Summary of lecture notes, syllabus units, or concepts covered..."
+                  className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF]"
                 />
               </div>
 

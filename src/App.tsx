@@ -360,6 +360,8 @@ export default function App() {
           <AllSubjectsPage
             subjects={subjects}
             userFavorites={userFavorites}
+            currentUser={currentUser}
+            onRefreshData={loadData}
             onToggleFavorite={handleToggleFavorite}
             onSelectSubject={handleSelectSubject}
           />
@@ -368,10 +370,13 @@ export default function App() {
         {activeTab === 'subject-detail' && selectedSubject && (
           <SubjectDetailPage
             subject={selectedSubject}
+            allSubjects={subjects}
             pdfs={pdfs}
+            currentUser={currentUser}
             isFavorite={userFavorites.includes(selectedSubject.id)}
             readLaterIds={readLaterIds}
             readingProgressMap={readingProgressMap}
+            onRefreshData={loadData}
             onToggleFavorite={(id) => handleToggleFavorite(id)}
             onToggleReadLater={handleToggleReadLater}
             onViewPdf={handleViewPdf}
