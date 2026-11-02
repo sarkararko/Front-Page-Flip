@@ -27,10 +27,10 @@ spring:
       max-file-size: 25MB
       max-request-size: 30MB
   mail:
-    host: ${MAIL_HOST:${SMTP_HOST:smtp-relay.brevo.com}}
-    port: ${MAIL_PORT:${SMTP_PORT:587}}
-    username: ${MAIL_USERNAME:${SMTP_USERNAME:}}
-    password: ${MAIL_PASSWORD:${SMTP_PASSWORD:}}
+    host: ${MAIL_HOST:${SMTP_HOST:${BREVO_SMTP_HOST:smtp-relay.brevo.com}}}
+    port: ${MAIL_PORT:${SMTP_PORT:${BREVO_SMTP_PORT:587}}}
+    username: ${MAIL_USERNAME:${SMTP_USERNAME:${BREVO_SMTP_USER:${BREVO_SMTP_USERNAME:${SPRING_MAIL_USERNAME:}}}}}
+    password: ${MAIL_PASSWORD:${SMTP_PASSWORD:${BREVO_SMTP_PASSWORD:${BREVO_SMTP_KEY:${BREVO_API_KEY:${SPRING_MAIL_PASSWORD:}}}}}}
     default-encoding: UTF-8
     properties:
       mail:
@@ -39,9 +39,11 @@ spring:
           starttls:
             enable: true
             required: true
-          connectiontimeout: 8000
-          timeout: 8000
-          writetimeout: 8000
+          ssl:
+            protocols: TLSv1.2 TLSv1.3
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
 
 # Security, Google OAuth & Application Settings
 app:
@@ -49,7 +51,7 @@ app:
     secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 Hours
   security:
-    creator-email: ${CREATOR_EMAIL:${ADMIN_EMAIL:arkaparna.ds@gmail.com}}
+    creator-email: ${CREATOR_EMAIL:${ADMIN_EMAIL:}}
     admin-initial-password: ${ADMIN_INITIAL_PASSWORD:}
   oauth:
     google:
@@ -59,7 +61,7 @@ app:
       client-id: ${GITHUB_CLIENT_ID:}
       client-secret: ${GITHUB_CLIENT_SECRET:}
   mail:
-    from: ${MAIL_FROM:${SMTP_FROM:no-reply@frontpageflip.com}}
+    from: ${MAIL_FROM:${SMTP_FROM:${BREVO_FROM:${BREVO_SENDER_EMAIL:${MAIL_USERNAME:${SMTP_USERNAME:no-reply@frontpageflip.com}}}}}}
     from-name: "Front-Page Flip"
     frontend-url: ${FRONTEND_URL:https://frontpageflip.vercel.app}
   storage:

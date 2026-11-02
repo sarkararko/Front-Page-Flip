@@ -10,7 +10,10 @@ export function getBackendBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const custom = (import.meta as any).env?.VITE_API_URL;
     if (custom) return custom.replace(/\/+$/, '');
-    if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('frontpageflip')) {
+    if (
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'
+    ) {
       return 'https://frontpageflip-backend.onrender.com';
     }
   }
@@ -477,8 +480,20 @@ export const ApiService = {
   },
 
   async logout(): Promise<void> {
+    try {
+      apiFetch<any>('/presence/logout', { method: 'POST' }).catch(() => {});
+    } catch {
+      // Ignore background logout network errors
+    }
     StorageService.setCurrentUser(null);
     StorageService.setSessionToken(null);
+    try {
+      localStorage.removeItem('fpf_session_token_v2');
+      localStorage.removeItem('fpf_current_user_v2');
+      sessionStorage.clear();
+    } catch {
+      // Ignore browser storage exceptions
+    }
   },
 
   getCurrentUser(): User | null {

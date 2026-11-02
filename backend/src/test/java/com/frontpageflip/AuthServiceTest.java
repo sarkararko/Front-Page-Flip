@@ -81,6 +81,7 @@ public class AuthServiceTest {
         when(passwordEncoder.encode(anyString())).thenReturn("hashed_password_123");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(verificationTokenRepository.save(any(VerificationToken.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(emailService.sendVerificationEmail(anyString(), anyString(), anyString())).thenReturn(true);
 
         AuthResponse response = authService.registerStudent(request);
 
@@ -165,6 +166,7 @@ public class AuthServiceTest {
         student.setPasswordHash("old_hashed_pass");
 
         when(userRepository.findByEmailIgnoreCase("student@school.edu")).thenReturn(Optional.of(student));
+        when(emailService.sendPasswordResetEmail(anyString(), anyString(), anyString())).thenReturn(true);
 
         // 1. Forgot Password request
         ForgotPasswordRequest forgotReq = new ForgotPasswordRequest();

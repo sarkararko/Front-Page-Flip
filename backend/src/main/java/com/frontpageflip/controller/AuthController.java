@@ -12,9 +12,19 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.frontpageflip.config.OAuth2Config oAuth2Config;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, com.frontpageflip.config.OAuth2Config oAuth2Config) {
         this.authService = authService;
+        this.oAuth2Config = oAuth2Config;
+    }
+
+    @GetMapping("/oauth-status")
+    public ResponseEntity<java.util.Map<String, Boolean>> getOAuthStatus() {
+        java.util.Map<String, Boolean> status = new java.util.HashMap<>();
+        status.put("googleConfigured", oAuth2Config.isGoogleConfigured());
+        status.put("githubConfigured", oAuth2Config.isGithubConfigured());
+        return ResponseEntity.ok(status);
     }
 
     @PostMapping("/student/register")

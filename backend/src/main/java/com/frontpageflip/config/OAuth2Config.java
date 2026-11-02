@@ -30,46 +30,62 @@ public class OAuth2Config {
     @Value("${app.oauth.github.client-secret:${GITHUB_CLIENT_SECRET:}}")
     private String githubClientSecret;
 
+    public boolean isGoogleConfigured() {
+        return googleClientId != null &&
+                !googleClientId.isBlank() &&
+                !googleClientId.toLowerCase().contains("placeholder") &&
+                !googleClientId.toLowerCase().contains("your-google-oauth-client-id");
+    }
+
+    public boolean isGithubConfigured() {
+        return githubClientId != null &&
+                !githubClientId.isBlank() &&
+                !githubClientId.toLowerCase().contains("placeholder") &&
+                !githubClientId.toLowerCase().contains("your-github-oauth-client-id");
+    }
+
     @Bean
     public ClientRegistrationRepository clientRegistrationRepository() {
         List<ClientRegistration> registrations = new ArrayList<>();
 
         // 1. Google OAuth 2.0 / OpenID Connect Provider
-        if (googleClientId != null && !googleClientId.isBlank() && !googleClientId.contains("placeholder")) {
+        if (isGoogleConfigured()) {
+            String cleanClientId = googleClientId.trim();
             log.info("Google OAuth provider configured successfully with Client ID prefix: {}***",
-                    googleClientId.trim().length() > 12 ? googleClientId.trim().substring(0, 12) : "valid-id");
+                    cleanClientId.length() > 12 ? cleanClientId.substring(0, 12) : "valid-id");
             registrations.add(CommonOAuth2Provider.GOOGLE.getBuilder("google")
-                    .clientId(googleClientId.trim())
+                    .clientId(cleanClientId)
                     .clientSecret(googleClientSecret != null ? googleClientSecret.trim() : "")
                     .scope("openid", "profile", "email")
                     .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
                     .build());
         } else {
-            log.warn("GOOGLE_CLIENT_ID is not configured in Render environment variables. Falling back to placeholder registration.");
-            registrations.add(CommonOAuth2Provider.GOOGLE.getBuilder("google")
-                    .clientId("placeholder-google-client-id.apps.googleusercontent.com")
-                    .clientSecret("placeholder-google-client-secret")
-                    .scope("openid", "profile", "email")
-                    .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
-                    .build());
+            log.warn("GOOGLE_CLIENT_ID is not configured in Render environment variables. Google OAuth registration omitted to prevent 401 invalid_client.");
         }
 
         // 2. GitHub OAuth 2.0 Provider
-        if (githubClientId != null && !githubClientId.isBlank() && !githubClientId.contains("placeholder")) {
+        if (isGithubConfigured()) {
+            String cleanClientId = githubClientId.trim();
             log.info("GitHub OAuth provider configured successfully with Client ID prefix: {}***",
-                    githubClientId.trim().length() > 8 ? githubClientId.trim().substring(0, 8) : "valid-id");
+                    cleanClientId.length() > 8 ? cleanClientId.substring(0, 8) : "valid-id");
             registrations.add(CommonOAuth2Provider.GITHUB.getBuilder("github")
-                    .clientId(githubClientId.trim())
+                    .clientId(cleanClientId)
                     .clientSecret(githubClientSecret != null ? githubClientSecret.trim() : "")
                     .scope("read:user", "user:email")
                     .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
                     .build());
         } else {
-            log.warn("GITHUB_CLIENT_ID is not configured in Render environment variables. Falling back to placeholder registration.");
-            registrations.add(CommonOAuth2Provider.GITHUB.getBuilder("github")
-                    .clientId("placeholder-github-client-id")
-                    .clientSecret("placeholder-github-client-secret")
-                    .scope("read:user", "user:email")
+            log.warn("GITHUB_CLIENT_ID is not configured in Render environment variables. GitHub OAuth registration omitted.");
+        }
+
+        // If neither is configured in environment, register a disabled dummy client
+        // solely to satisfy Spring Security's non-empty InMemoryClientRegistrationRepository constraint
+        if (registrations.isEmpty()) {
+            log.warn("No OAuth2 providers configured. Registering disabled dummy client to satisfy container startup.");
+            registrations.add(CommonOAuth2Provider.GOOGLE.getBuilder("unconfigured")
+                    .clientId("unconfigured-client-id")
+                    .clientSecret("unconfigured-client-secret")
+                    .scope("openid")
                     .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
                     .build());
         }

@@ -20,6 +20,12 @@ public class EmailService {
     @Autowired(required = false)
     private JavaMailSender mailSender;
 
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
+    @Value("${spring.mail.password:}")
+    private String mailPassword;
+
     @Value("${app.mail.from:${spring.mail.from:${MAIL_FROM:no-reply@frontpageflip.com}}}")
     private String fromEmail;
 
@@ -29,7 +35,13 @@ public class EmailService {
     @Value("${app.mail.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     private String frontendUrl;
 
-    public void sendVerificationEmail(String toEmail, String userName, String code) {
+    public boolean isConfigured() {
+        return mailSender != null &&
+                mailUsername != null && !mailUsername.trim().isEmpty() &&
+                mailPassword != null && !mailPassword.trim().isEmpty();
+    }
+
+    public boolean sendVerificationEmail(String toEmail, String userName, String code) {
         String directLink = frontendUrl + "/?mode=verify&email=" + toEmail + "&code=" + code;
         String subject = "Verify your Front-Page Flip student account";
 
@@ -74,10 +86,10 @@ public class EmailService {
                 "This code will expire in 24 hours.\n\n" +
                 "— Front-Page Flip Security";
 
-        sendHtmlEmail(toEmail, subject, htmlContent, plainText);
+        return sendHtmlEmail(toEmail, subject, htmlContent, plainText);
     }
 
-    public void sendPasswordResetEmail(String toEmail, String userName, String code) {
+    public boolean sendPasswordResetEmail(String toEmail, String userName, String code) {
         String directLink = frontendUrl + "/?mode=reset&email=" + toEmail + "&token=" + code;
         String subject = "Reset your Front-Page Flip password";
 
@@ -122,30 +134,39 @@ public class EmailService {
                 "This code will expire in 15 minutes.\n\n" +
                 "— Front-Page Flip Security";
 
-        sendHtmlEmail(toEmail, subject, htmlContent, plainText);
+        return sendHtmlEmail(toEmail, subject, htmlContent, plainText);
     }
 
-    private void sendHtmlEmail(String toEmail, String subject, String htmlContent, String plainText) {
-        if (mailSender == null) {
-            log.info("Brevo JavaMailSender not initialized. Simulated email dispatch for {}: subject={}",
-                    maskEmail(toEmail), subject);
-            return;
+    private boolean sendHtmlEmail(String toEmail, String subject, String htmlContent, String plainText) {
+        if (!isConfigured()) {
+            log.warn("SMTP email delivery is unconfigured or credentials are missing (MAIL_USERNAME / MAIL_PASSWORD). Dispatch to {} skipped.",
+                    maskEmail(toEmail));
+            return false;
         }
 
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
 
-            helper.setFrom(new InternetAddress(fromEmail, fromName));
+            // Determine effective sender: if fromEmail is the default unverified domain, and mailUsername is an email, prefer mailUsername
+            String effectiveFrom = fromEmail;
+            if ((effectiveFrom == null || effectiveFrom.contains("frontpageflip.com")) &&
+                    mailUsername != null && mailUsername.contains("@")) {
+                effectiveFrom = mailUsername.trim();
+            }
+
+            helper.setFrom(new InternetAddress(effectiveFrom, fromName));
             helper.setTo(toEmail);
             helper.setSubject(subject);
             helper.setText(plainText, htmlContent);
 
             mailSender.send(message);
-            log.info("Email delivered successfully via Brevo SMTP to {}", maskEmail(toEmail));
+            log.info("Email delivered successfully via SMTP to {}", maskEmail(toEmail));
+            return true;
         } catch (Exception e) {
             // Never log sensitive credentials or tokens on failure
-            log.warn("SMTP delivery attempt to {} encountered an error: {}", maskEmail(toEmail), e.getMessage());
+            log.error("SMTP delivery failure to {}: {}", maskEmail(toEmail), e.getMessage());
+            return false;
         }
     }
 

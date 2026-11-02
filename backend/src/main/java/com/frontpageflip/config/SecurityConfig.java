@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -31,7 +32,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   ClientRegistrationRepository clientRegistrationRepository) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> {})
@@ -59,6 +61,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/reset-password",
                                 "/api/auth/google",
                                 "/api/v1/auth/google",
+                                "/api/auth/oauth-status",
+                                "/api/v1/auth/oauth-status",
                                 "/oauth2/**",
                                 "/login/oauth2/**",
                                 "/api/presence/active-students-count",
@@ -98,6 +102,12 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(auth -> auth
+                                .authorizationRequestResolver(new CustomOAuth2AuthorizationRequestResolver(
+                                        clientRegistrationRepository,
+                                        "/oauth2/authorization"
+                                ))
+                        )
                         .successHandler(oauth2SuccessHandler)
                         .failureHandler(oauth2FailureHandler)
                 )

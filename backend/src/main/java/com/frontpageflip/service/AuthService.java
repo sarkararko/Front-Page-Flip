@@ -38,7 +38,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
 
-    @Value("${app.security.creator-email:arkaparna.ds@gmail.com}")
+    @Value("${app.security.creator-email:}")
     private String creatorEmail;
 
     public AuthService(UserRepository userRepository,
@@ -85,7 +85,10 @@ public class AuthService {
 
                 String code = generateNumericOtp(6);
                 saveVerificationToken(saved, code, 24, ChronoUnit.HOURS);
-                emailService.sendVerificationEmail(saved.getEmail(), saved.getName(), code);
+                boolean sent = emailService.sendVerificationEmail(saved.getEmail(), saved.getName(), code);
+                if (!sent) {
+                    throw new BadRequestException("We couldn't send your verification code. Please try again.");
+                }
 
                 return new AuthResponse(null, toUserDto(saved),
                         "A new 6-digit verification code has been dispatched to your email address.",
@@ -110,7 +113,10 @@ public class AuthService {
         String code = generateNumericOtp(6);
         saveVerificationToken(savedUser, code, 24, ChronoUnit.HOURS);
 
-        emailService.sendVerificationEmail(savedUser.getEmail(), savedUser.getName(), code);
+        boolean sent = emailService.sendVerificationEmail(savedUser.getEmail(), savedUser.getName(), code);
+        if (!sent) {
+            throw new BadRequestException("We couldn't send your verification code. Please try again.");
+        }
 
         return new AuthResponse(
                 null,
@@ -263,7 +269,10 @@ public class AuthService {
         user.setLastVerificationSentAt(Instant.now());
         userRepository.save(user);
 
-        emailService.sendVerificationEmail(user.getEmail(), user.getName(), code);
+        boolean sent = emailService.sendVerificationEmail(user.getEmail(), user.getName(), code);
+        if (!sent) {
+            throw new BadRequestException("We couldn't send your verification code. Please try again.");
+        }
 
         return new GenericResponse(true, "If an unverified account exists for this email address, a new verification code has been dispatched.");
     }
@@ -298,7 +307,10 @@ public class AuthService {
                 user.setLastPasswordResetSentAt(Instant.now());
                 userRepository.save(user);
 
-                emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), code);
+                boolean sent = emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), code);
+                if (!sent) {
+                    throw new BadRequestException("We couldn't send your recovery code. Please try again.");
+                }
             }
         }
 

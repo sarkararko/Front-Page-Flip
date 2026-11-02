@@ -44,7 +44,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Admin form fields
-  const [adminEmail, setAdminEmail] = useState('arkaparna.ds@gmail.com');
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
@@ -188,10 +188,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
       setStudentMode('verify');
       setResendCooldown(60);
       setSuccessMessage(
-        res.message || `A 6-digit verification code has been dispatched to ${studentEmail.trim()} via Brevo.`
+        res.message || `A 6-digit verification code has been dispatched to ${studentEmail.trim()}.`
       );
     } catch (err: any) {
-      setError(err?.message || 'Registration failed.');
+      setError(err?.message || 'We couldn’t send your verification code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -468,7 +468,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                   setActiveRole('admin');
                   setError(null);
                   setSuccessMessage(null);
-                  if (!adminEmail) setAdminEmail('arkaparna.ds@gmail.com');
                 }}
                 className={`py-2 px-2.5 rounded-xl text-xs sm:text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   activeRole === 'admin'
@@ -514,7 +513,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                     <span>Strict Creator Access</span>
                   </div>
                   <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed font-normal">
-                    Restricted strictly to <span className="font-bold text-amber-950">arkaparna.ds@gmail.com</span>. Public administrator registration is permanently disabled.
+                    Restricted strictly to authorized administrator credentials. Public administrator registration is permanently disabled.
                   </p>
                 </div>
 
@@ -530,7 +529,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                         required
                         value={adminEmail}
                         onChange={(e) => setAdminEmail(e.target.value)}
-                        placeholder="arkaparna.ds@gmail.com"
+                        placeholder="administrator@gmail.com"
                         className="w-full pl-9 pr-3 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] focus:ring-1 focus:ring-[#1677FF]/20 outline-hidden font-normal text-[#0F172A] placeholder:text-slate-400"
                       />
                     </div>
@@ -569,20 +568,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                     <span>{loading ? 'Authenticating...' : 'Sign In as Administrator'}</span>
                   </button>
                 </form>
-
-                {/* Auto-fill demo passphrase link */}
-                <div className="text-center pt-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAdminEmail('arkaparna.ds@gmail.com');
-                      setAdminPassword('Admin123!');
-                    }}
-                    className="text-xs text-[#7C3AED] hover:text-[#6D28D9] hover:underline font-semibold cursor-pointer"
-                  >
-                    Auto-fill Creator Demo Passphrase
-                  </button>
-                </div>
               </div>
             )}
 
@@ -845,7 +830,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                     <div>
                       <h3 className="text-base font-bold text-[#102A56]">Verify Your Email</h3>
                       <p className="text-xs text-[#64748B] mt-0.5">
-                        Code sent via Brevo to <span className="font-bold text-[#102A56]">{pendingEmail}</span>
+                        Code sent to <span className="font-bold text-[#102A56]">{pendingEmail}</span>
                       </p>
                     </div>
 
@@ -932,7 +917,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                       disabled={loading}
                       className="w-full py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-semibold text-xs sm:text-sm rounded-xl transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                     >
-                      {loading ? 'Sending...' : 'Send Recovery Code via Brevo'}
+                      {loading ? 'Sending...' : 'Send Recovery Code'}
                     </button>
 
                     <div className="text-center text-xs pt-1">
@@ -956,7 +941,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                   <form onSubmit={handleResetPassword} className="space-y-2">
                     <div className="text-center mb-1">
                       <h3 className="text-base font-bold text-[#102A56]">Enter New Password</h3>
-                      <p className="text-xs text-[#64748B] mt-0.5">Enter the code from your Brevo email</p>
+                      <p className="text-xs text-[#64748B] mt-0.5">Enter the code from your email</p>
                     </div>
 
                     <div>
