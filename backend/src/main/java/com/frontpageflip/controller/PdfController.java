@@ -90,8 +90,8 @@ public class PdfController {
     public ResponseEntity<PdfResponse> uploadPdf(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail,
-            @RequestParam("title") String title,
-            @RequestParam("topic") String topic,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "topic", required = false) String topic,
             @RequestParam(value = "subjectId", required = false) String subjectId,
             @RequestParam(value = "subjectName", required = false) String subjectName,
             @RequestParam(value = "course", defaultValue = "B.Tech / B.Sc") String course,

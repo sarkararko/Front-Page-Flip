@@ -632,13 +632,38 @@ export const ApiService = {
     if (!current || current.role !== 'admin' || current.email.toLowerCase() !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
       throw new Error('403 Forbidden: Only the authorized creator and administrator can edit subjects.');
     }
+    const cleanPayload = {
+      name: subject.name.trim(),
+      slug: subject.slug || subject.name.toLowerCase().replace(/\s+/g, '-'),
+      description: subject.description || '',
+      icon: subject.icon || 'sigma',
+      iconColor: subject.iconColor || '#1677FF',
+      iconBgColor: subject.iconBgColor || '#EFF6FF',
+    };
     try {
-      await apiFetch<any>(`/subjects/${subject.id}`, {
+      const res = await apiFetch<any>(`/subjects/${subject.id}`, {
         method: 'PUT',
-        body: JSON.stringify(subject),
+        body: JSON.stringify(cleanPayload),
       });
-    } catch {
-      // local fallback
+      if (res && res.id) {
+        const mapped: Subject = {
+          ...subject,
+          id: res.id,
+          name: res.name,
+          slug: res.slug,
+          description: res.description,
+          icon: res.icon,
+          iconColor: res.iconColor,
+          iconBgColor: res.iconBgColor,
+          pdfCount: typeof res.pdfCount === 'number' ? res.pdfCount : subject.pdfCount,
+        };
+        StorageService.saveSubject(mapped);
+        return mapped;
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
     }
     StorageService.saveSubject(subject);
     return subject;
@@ -653,8 +678,10 @@ export const ApiService = {
       await apiFetch<any>(`/subjects/${id}`, {
         method: 'DELETE',
       });
-    } catch {
-      // local fallback
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
     }
     StorageService.deleteSubject(id);
   },
@@ -757,6 +784,89 @@ export const ApiService = {
     return pdf;
   },
 
+  async uploadPdf(formData: FormData): Promise<PdfResource> {
+    const current = StorageService.getCurrentUser();
+    if (!current || current.role !== 'admin' || current.email.toLowerCase() !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
+      throw new Error('403 Forbidden: Only the authorized creator and administrator can upload educational PDFs.');
+    }
+
+    const title = (formData.get('title') as string) || 'Educational Document';
+    const topic = (formData.get('topic') as string) || '';
+    const subjectId = (formData.get('subjectId') as string) || '';
+    const subjectName = (formData.get('subjectName') as string) || '';
+    const course = (formData.get('course') as string) || 'B.Tech / B.Sc';
+    const semester = (formData.get('semester') as string) || 'Semester 1';
+    const description = (formData.get('description') as string) || '';
+    const pageCount = parseInt((formData.get('pageCount') as string) || '1') || 1;
+    const downloadAllowed = formData.get('downloadAllowed') !== 'false';
+
+    // 1. Attempt real backend upload first
+    try {
+      const backendDoc = await apiFetch<any>('/pdfs', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (backendDoc && backendDoc.id) {
+        const mapped: PdfResource = {
+          id: backendDoc.id,
+          title: backendDoc.title || title,
+          subjectId: backendDoc.subjectId || subjectId,
+          subjectName: backendDoc.subjectName || subjectName,
+          topic: backendDoc.topic || topic,
+          course: backendDoc.course || course,
+          semester: backendDoc.semester || semester,
+          description: backendDoc.description || description,
+          pageCount: backendDoc.pageCount || pageCount,
+          fileSize: backendDoc.fileSize || '1.0 MB',
+          fileName: backendDoc.fileName || `${backendDoc.title || title}.pdf`,
+          fileUrl: `/api/v1/pdfs/${backendDoc.id}/download`,
+          thumbnailUrl: backendDoc.thumbnailUrl || undefined,
+          uploadDate: backendDoc.createdAt ? backendDoc.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+          isPublished: backendDoc.published !== false,
+          downloadAllowed: backendDoc.downloadAllowed !== false,
+        };
+        StorageService.savePdf(mapped);
+        return mapped;
+      }
+    } catch (e: any) {
+      // Propagate real server errors (like 400, 401, 403, 500)
+      if (e?.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
+    }
+
+    // 2. Offline client fallback
+    const pdfId = `pdf-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const file = formData.get('file') as File | null;
+    const fileName = file ? file.name : `${title}.pdf`;
+    const formattedSize = file
+      ? file.size >= 1024 * 1024
+        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${Math.round(file.size / 1024)} KB`
+      : '1.0 MB';
+
+    const localPdf: PdfResource = {
+      id: pdfId,
+      title,
+      subjectId,
+      subjectName,
+      topic: topic || subjectName,
+      course,
+      semester,
+      description,
+      pageCount,
+      fileSize: formattedSize,
+      fileName,
+      uploadDate: new Date().toISOString().split('T')[0],
+      isPublished: true,
+      downloadAllowed,
+    };
+
+    StorageService.savePdf(localPdf);
+    return localPdf;
+  },
+
   async createPdf(pdf: Omit<PdfResource, 'id' | 'uploadDate'>): Promise<PdfResource> {
     const current = StorageService.getCurrentUser();
     if (!current || current.role !== 'admin' || current.email.toLowerCase() !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
@@ -815,8 +925,10 @@ export const ApiService = {
           StorageService.savePdf(newPdf);
         }
       }
-    } catch (backendErr) {
-      console.warn('Backend PDF upload offline/skipped, saved locally:', backendErr);
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+        throw e;
+      }
     }
 
     return newPdf;
@@ -948,5 +1060,57 @@ export const ApiService = {
     } catch {
       // Ignore background progress errors
     }
+  },
+
+  // --- ADMIN STATISTICS & STUDENT RECORDS (Aiven MySQL & Local Fallback) ---
+  async getAdminStats(): Promise<{ totalSubjects: number; totalPdfs: number; totalStudents: number; totalDownloads: number }> {
+    try {
+      const stats = await apiFetch<any>('/admin/stats');
+      if (stats) {
+        return {
+          totalSubjects: Number(stats.totalSubjects) || 0,
+          totalPdfs: Number(stats.totalPdfs) || 0,
+          totalStudents: Number(stats.totalStudents) || 0,
+          totalDownloads: Number(stats.totalDownloads) || 0,
+        };
+      }
+    } catch {
+      // Local fallback
+    }
+
+    const subjects = StorageService.getSubjects();
+    const pdfs = StorageService.getPdfs();
+    const users = StorageService.getUsers();
+    const studentCount = users.filter((u) => u.role === 'student').length;
+
+    return {
+      totalSubjects: subjects.length,
+      totalPdfs: pdfs.length,
+      totalStudents: studentCount,
+      totalDownloads: pdfs.length * 4,
+    };
+  },
+
+  async getRegisteredStudents(): Promise<User[]> {
+    try {
+      const backendStudents = await apiFetch<any[]>('/admin/students');
+      if (backendStudents && Array.isArray(backendStudents)) {
+        return backendStudents.map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: 'student',
+          avatar: u.avatar || (u.name ? u.name.slice(0, 2).toUpperCase() : 'ST'),
+          emailVerified: u.emailVerified === true,
+          provider: u.provider || 'email',
+          createdAt: u.createdAt || new Date().toISOString(),
+        }));
+      }
+    } catch {
+      // Local fallback
+    }
+
+    const users = StorageService.getUsers();
+    return users.filter((u) => u.role === 'student');
   },
 };

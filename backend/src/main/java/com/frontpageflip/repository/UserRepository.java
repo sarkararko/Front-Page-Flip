@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -15,6 +16,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByEmailIgnoreCase(String email);
     boolean existsByEmailIgnoreCase(String email);
     long countByRole(Role role);
+    List<User> findByRoleOrderByCreatedAtDesc(Role role);
 
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.frontpageflip.model.Role.STUDENT AND u.accountStatus = 'ACTIVE' AND u.lastActiveAt >= :activeThreshold")
     long countActiveStudents(@Param("activeThreshold") Instant activeThreshold);

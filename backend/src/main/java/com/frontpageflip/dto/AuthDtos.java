@@ -165,6 +165,8 @@ public class AuthDtos {
         private String accountStatus;
         private boolean emailVerified;
         private String avatar;
+        private String provider;
+        private String createdAt;
 
         public UserDto() {}
 
@@ -197,6 +199,12 @@ public class AuthDtos {
 
         public String getAvatar() { return avatar; }
         public void setAvatar(String avatar) { this.avatar = avatar; }
+
+        public String getProvider() { return provider; }
+        public void setProvider(String provider) { this.provider = provider; }
+
+        public String getCreatedAt() { return createdAt; }
+        public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
     }
 
     public static class AuthResponse {

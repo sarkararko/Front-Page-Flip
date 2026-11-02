@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -79,11 +80,21 @@ public class SubjectService {
 
     @Transactional
     public SubjectResponse updateSubject(String id, SubjectRequest request, String adminUserId) {
-        Subject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with ID: " + id));
+        String cleanId = id != null ? id.trim() : "";
+        Subject subject = subjectRepository.findById(cleanId)
+                .or(() -> subjectRepository.findBySlug(cleanId.toLowerCase()))
+                .or(() -> subjectRepository.findByNameIgnoreCase(cleanId))
+                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with ID or slug: " + id));
 
         subject.setName(request.getName().trim());
-        if (request.getDescription() != null) subject.setDescription(request.getDescription());
+        if (request.getSlug() != null && !request.getSlug().isBlank()) {
+            String newSlug = request.getSlug().trim().toLowerCase().replaceAll("[^a-z0-9-]", "-");
+            Optional<Subject> existingBySlug = subjectRepository.findBySlug(newSlug);
+            if (existingBySlug.isEmpty() || existingBySlug.get().getId().equals(subject.getId())) {
+                subject.setSlug(newSlug);
+            }
+        }
+        if (request.getDescription() != null) subject.setDescription(request.getDescription().trim());
         if (request.getIcon() != null) subject.setIcon(request.getIcon());
         if (request.getIconColor() != null) subject.setIconColor(request.getIconColor());
         if (request.getIconBgColor() != null) subject.setIconBgColor(request.getIconBgColor());
@@ -94,8 +105,11 @@ public class SubjectService {
 
     @Transactional
     public void deleteSubject(String id) {
-        Subject subject = subjectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with ID: " + id));
+        String cleanId = id != null ? id.trim() : "";
+        Subject subject = subjectRepository.findById(cleanId)
+                .or(() -> subjectRepository.findBySlug(cleanId.toLowerCase()))
+                .or(() -> subjectRepository.findByNameIgnoreCase(cleanId))
+                .orElseThrow(() -> new ResourceNotFoundException("Subject not found with ID or slug: " + id));
         subjectRepository.delete(subject);
     }
 

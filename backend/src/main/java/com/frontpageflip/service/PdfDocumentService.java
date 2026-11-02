@@ -107,7 +107,7 @@ public class PdfDocumentService {
     private Subject resolveExistingSubject(String subjectId, String subjectName) {
         Subject subject = null;
         if (subjectId != null && !subjectId.isBlank()) {
-            subject = subjectRepository.findById(subjectId).orElse(null);
+            subject = subjectRepository.findById(subjectId.trim()).orElse(null);
             if (subject == null) {
                 subject = subjectRepository.findBySlug(subjectId.trim().toLowerCase()).orElse(null);
             }
@@ -126,7 +126,25 @@ public class PdfDocumentService {
             }
         }
         if (subject == null) {
-            throw new BadRequestException("Subject name does not match an existing subject. Please select a valid subject.");
+            String nameToUse = (subjectName != null && !subjectName.isBlank())
+                    ? subjectName.trim()
+                    : ((subjectId != null && !subjectId.isBlank()) ? subjectId.trim() : "General Studies");
+            String slug = nameToUse.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
+            if (slug.isBlank()) {
+                slug = "subject-" + UUID.randomUUID().toString().substring(0, 6);
+            }
+            if (subjectRepository.existsBySlug(slug)) {
+                slug = slug + "-" + UUID.randomUUID().toString().substring(0, 4);
+            }
+            Subject newSubject = new Subject();
+            newSubject.setId("sub_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
+            newSubject.setName(nameToUse);
+            newSubject.setSlug(slug);
+            newSubject.setDescription("Study materials and lecture notes for " + nameToUse);
+            newSubject.setIcon("book");
+            newSubject.setIconColor("#1677FF");
+            newSubject.setIconBgColor("#EFF6FF");
+            subject = subjectRepository.save(newSubject);
         }
         return subject;
     }
@@ -209,10 +227,17 @@ public class PdfDocumentService {
             }
         }
 
+        String effectiveTitle = (title != null && !title.isBlank())
+                ? title.trim()
+                : (file.getOriginalFilename() != null ? file.getOriginalFilename().replaceFirst("(?i)\\.pdf$", "").replace('_', ' ').replace('-', ' ').trim() : "Educational Document");
+        String effectiveTopic = (topic != null && !topic.isBlank())
+                ? topic.trim()
+                : subject.getName();
+
         PdfDocument doc = new PdfDocument();
         doc.setId("pdf_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-        doc.setTitle(title.trim());
-        doc.setTopic(topic.trim());
+        doc.setTitle(effectiveTitle);
+        doc.setTopic(effectiveTopic);
         doc.setSubject(subject);
         doc.setCourse(course != null && !course.isBlank() ? course.trim() : "B.Tech / B.Sc");
         doc.setSemester(semester != null && !semester.isBlank() ? semester.trim() : "Semester 1");

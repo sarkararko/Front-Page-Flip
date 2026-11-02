@@ -1,10 +1,12 @@
 package com.frontpageflip.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public class SubjectDtos {
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SubjectRequest {
         @NotBlank(message = "Subject name is required")
         @Size(min = 2, max = 100, message = "Subject name must be between 2 and 100 characters")
