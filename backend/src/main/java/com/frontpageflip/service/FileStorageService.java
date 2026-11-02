@@ -85,6 +85,29 @@ public class FileStorageService {
         } catch (IOException ignored) {}
     }
 
+    public String storeThumbnail(MultipartFile file) {
+        if (file == null || file.isEmpty()) return null;
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BadRequestException("Thumbnail file size exceeds 5MB limit");
+        }
+        try {
+            Path thumbDir = Paths.get(uploadDir, "thumbnails").toAbsolutePath().normalize();
+            Files.createDirectories(thumbDir);
+
+            String orig = file.getOriginalFilename();
+            String ext = ".jpg";
+            if (orig != null && orig.lastIndexOf('.') != -1) {
+                ext = orig.substring(orig.lastIndexOf('.')).toLowerCase();
+            }
+            String storageKey = "thumb_" + UUID.randomUUID().toString().replace("-", "") + ext;
+            Path targetLocation = thumbDir.resolve(storageKey);
+            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            return "/api/pdfs/thumbnail/" + storageKey;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to persist thumbnail image to disk: " + e.getMessage(), e);
+        }
+    }
+
     public static String formatFileSize(long bytes) {
         if (bytes < 1024) return bytes + " B";
         int exp = (int) (Math.log(bytes) / Math.log(1024));

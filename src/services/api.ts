@@ -302,47 +302,50 @@ export const ApiService = {
         return {
           user: newUser,
           requiresVerification: true,
-          message: backendRes.message || 'Registration successful. A 6-digit verification code has been dispatched to your email.',
+          message: backendRes.message || 'Registration successful! A 6-digit verification code has been dispatched to your email.',
         };
       }
     } catch (e: any) {
-      if (e?.message && !e.message.includes('Failed to fetch')) {
-        throw e;
-      }
+      // Propagate any server-side validation or SMTP failure
+      throw e;
     }
 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    StorageService.saveVerificationCode(cleanEmail, verificationCode);
+    // Offline dev mode fallback only on localhost
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      StorageService.saveVerificationCode(cleanEmail, verificationCode);
 
-    const initials =
-      name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase() || 'ST';
+      const initials =
+        name
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase() || 'ST';
 
-    // STRICT: Public registration can NEVER create an admin account
-    const newUser: User = {
-      id: `usr-${Date.now()}`,
-      name,
-      email: cleanEmail,
-      role: 'student', // Mandatory student role
-      avatar: initials,
-      emailVerified: false,
-      createdAt: new Date().toISOString(),
-      provider: 'email',
-      passwordHash: password ? await hashPassword(password) : undefined,
-    };
+      const newUser: User = {
+        id: `usr-${Date.now()}`,
+        name,
+        email: cleanEmail,
+        role: 'student',
+        avatar: initials,
+        emailVerified: false,
+        createdAt: new Date().toISOString(),
+        provider: 'email',
+        passwordHash: password ? await hashPassword(password) : undefined,
+      };
 
-    StorageService.addUser(newUser);
+      StorageService.addUser(newUser);
 
-    return {
-      user: newUser,
-      requiresVerification: true,
-      verificationCode,
-      message: `A 6-digit verification code has been dispatched to ${cleanEmail}`,
-    };
+      return {
+        user: newUser,
+        requiresVerification: true,
+        verificationCode,
+        message: `Offline Dev Mode: Verification code generated (${verificationCode}).`,
+      };
+    }
+
+    throw new Error("We couldn't send your verification code. Please check your email address and try again.");
   },
 
   async verifyEmail(email: string, code: string): Promise<{ success: boolean; message: string; user?: User }> {
@@ -411,18 +414,20 @@ export const ApiService = {
         };
       }
     } catch (e: any) {
-      if (e?.message && !e.message.includes('Failed to fetch')) {
-        throw e;
-      }
+      throw e;
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    StorageService.saveVerificationCode(cleanEmail, code);
-    return {
-      success: true,
-      code,
-      message: `A new 6-digit verification code has been dispatched to ${cleanEmail}.`,
-    };
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      StorageService.saveVerificationCode(cleanEmail, code);
+      return {
+        success: true,
+        code,
+        message: `Offline Dev Mode: A new verification code was generated (${code}).`,
+      };
+    }
+
+    throw new Error("We couldn't send your verification code. Please check your email address and try again.");
   },
 
   async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
@@ -673,6 +678,7 @@ export const ApiService = {
           fileSize: p.fileSize || '1.0 MB',
           fileName: p.fileName || `${p.title}.pdf`,
           fileUrl: `/api/v1/pdfs/${p.id}/download`,
+          thumbnailUrl: p.thumbnailUrl || undefined,
           uploadDate: p.createdAt ? p.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
           isPublished: p.published !== false,
           downloadAllowed: p.downloadAllowed !== false,
@@ -696,7 +702,23 @@ export const ApiService = {
     let pdfs = StorageService.getPdfs();
 
     if (params?.subjectId) {
-      pdfs = pdfs.filter((p) => p.subjectId === params.subjectId);
+      const allSubs = StorageService.getSubjects();
+      const targetSub = allSubs.find(
+        (s) =>
+          s.id === params.subjectId ||
+          (s.slug && s.slug.toLowerCase() === params.subjectId!.toLowerCase()) ||
+          s.name.trim().toLowerCase() === params.subjectId!.trim().toLowerCase()
+      );
+      const targetName = targetSub ? targetSub.name.trim().toLowerCase() : '';
+      const targetSlug = targetSub?.slug ? targetSub.slug.trim().toLowerCase() : '';
+
+      pdfs = pdfs.filter(
+        (p) =>
+          p.subjectId === params.subjectId ||
+          (targetSlug && p.subjectId?.toLowerCase() === targetSlug) ||
+          (targetName && p.subjectName?.trim().toLowerCase() === targetName) ||
+          (p.subjectId && targetName && p.subjectId.trim().toLowerCase() === targetName)
+      );
     }
 
     if (params?.topic) {
@@ -741,7 +763,8 @@ export const ApiService = {
       throw new Error('403 Forbidden: Only the authorized creator and administrator can upload educational PDFs.');
     }
 
-    const pdfId = `pdf-${Date.now()}`;
+    // High entropy unique identifier ensures multiple PDFs with identical titles or topics never collide or overwrite
+    const pdfId = `pdf-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const { fileData, ...metadata } = pdf;
 
     // Persist real PDF binary in IndexedDB
@@ -757,6 +780,45 @@ export const ApiService = {
     };
 
     StorageService.savePdf(newPdf);
+
+    // If backend is active, also sync to backend database / Cloudinary
+    try {
+      if (fileData && fileData.includes(',')) {
+        const formData = new FormData();
+        const byteString = atob(fileData.split(',')[1] || '');
+        const mimeString = fileData.split(',')[0].split(':')[1].split(';')[0] || 'application/pdf';
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mimeString });
+        formData.append('file', blob, metadata.fileName || 'document.pdf');
+        formData.append('title', metadata.title);
+        formData.append('topic', metadata.topic);
+        if (metadata.subjectId) formData.append('subjectId', metadata.subjectId);
+        if (metadata.subjectName) formData.append('subjectName', metadata.subjectName);
+        if (metadata.course) formData.append('course', metadata.course);
+        if (metadata.semester) formData.append('semester', metadata.semester);
+        if (metadata.description) formData.append('description', metadata.description);
+        formData.append('pageCount', String(metadata.pageCount || 1));
+        formData.append('downloadAllowed', String(metadata.downloadAllowed !== false));
+
+        const backendDoc = await apiFetch<any>('/pdfs', {
+          method: 'POST',
+          body: formData,
+        });
+        if (backendDoc && backendDoc.id) {
+          newPdf.id = backendDoc.id;
+          if (backendDoc.cloudinarySecureUrl) newPdf.cloudinarySecureUrl = backendDoc.cloudinarySecureUrl;
+          if (backendDoc.thumbnailUrl) newPdf.thumbnailUrl = backendDoc.thumbnailUrl;
+          StorageService.savePdf(newPdf);
+        }
+      }
+    } catch (backendErr) {
+      console.warn('Backend PDF upload offline/skipped, saved locally:', backendErr);
+    }
+
     return newPdf;
   },
 
@@ -771,6 +833,28 @@ export const ApiService = {
     }
 
     StorageService.savePdf(pdf);
+
+    try {
+      const formData = new FormData();
+      formData.append('title', pdf.title);
+      formData.append('topic', pdf.topic);
+      if (pdf.subjectId) formData.append('subjectId', pdf.subjectId);
+      if (pdf.subjectName) formData.append('subjectName', pdf.subjectName);
+      if (pdf.course) formData.append('course', pdf.course);
+      if (pdf.semester) formData.append('semester', pdf.semester);
+      if (pdf.description) formData.append('description', pdf.description);
+      formData.append('pageCount', String(pdf.pageCount || 1));
+      formData.append('downloadAllowed', String(pdf.downloadAllowed !== false));
+      formData.append('published', String(pdf.isPublished !== false));
+
+      await apiFetch<any>(`/pdfs/${pdf.id}`, {
+        method: 'PUT',
+        body: formData,
+      });
+    } catch {
+      // Local fallback
+    }
+
     return pdf;
   },
 
@@ -781,6 +865,14 @@ export const ApiService = {
     }
     await PdfFileStore.deletePdfFile(id);
     StorageService.deletePdf(id);
+
+    try {
+      await apiFetch<any>(`/pdfs/${id}`, {
+        method: 'DELETE',
+      });
+    } catch {
+      // Local fallback
+    }
   },
 
   // --- USER FAVORITES (MySQL & Local Sync) ---

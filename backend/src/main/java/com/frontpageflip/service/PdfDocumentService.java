@@ -55,8 +55,20 @@ public class PdfDocumentService {
         this.cloudinaryService = cloudinaryService;
     }
 
-    public List<PdfResponse> getPdfsBySubject(String subjectId, String currentUserId) {
-        List<PdfDocument> list = pdfRepository.findBySubjectIdAndPublishedTrueOrderByCreatedAtDesc(subjectId);
+    public List<PdfResponse> getPdfsBySubject(String subjectIdOrSlug, String currentUserId) {
+        if (subjectIdOrSlug == null || subjectIdOrSlug.isBlank()) {
+            return List.of();
+        }
+        Optional<Subject> subOpt = subjectRepository.findById(subjectIdOrSlug);
+        if (subOpt.isEmpty()) {
+            subOpt = subjectRepository.findBySlug(subjectIdOrSlug.trim().toLowerCase());
+        }
+        if (subOpt.isEmpty()) {
+            subOpt = subjectRepository.findByNameIgnoreCase(subjectIdOrSlug.trim());
+        }
+
+        String targetSubjectId = subOpt.map(Subject::getId).orElse(subjectIdOrSlug);
+        List<PdfDocument> list = pdfRepository.findBySubjectIdAndPublishedTrueOrderByCreatedAtDesc(targetSubjectId);
         return list.stream().map(p -> toResponse(p, currentUserId)).collect(Collectors.toList());
     }
 
@@ -96,10 +108,22 @@ public class PdfDocumentService {
         Subject subject = null;
         if (subjectId != null && !subjectId.isBlank()) {
             subject = subjectRepository.findById(subjectId).orElse(null);
+            if (subject == null) {
+                subject = subjectRepository.findBySlug(subjectId.trim().toLowerCase()).orElse(null);
+            }
+            if (subject == null) {
+                subject = subjectRepository.findByNameIgnoreCase(subjectId.trim()).orElse(null);
+            }
         }
         if (subject == null && subjectName != null && !subjectName.isBlank()) {
             String cleanName = subjectName.trim();
             subject = subjectRepository.findByNameIgnoreCase(cleanName).orElse(null);
+            if (subject == null) {
+                String potentialSlug = cleanName.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
+                if (!potentialSlug.isBlank()) {
+                    subject = subjectRepository.findBySlug(potentialSlug).orElse(null);
+                }
+            }
             if (subject == null) {
                 subject = new Subject();
                 subject.setId("sub_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
@@ -133,11 +157,27 @@ public class PdfDocumentService {
                                  int pageCount,
                                  boolean downloadAllowed,
                                  String adminUserId) {
-        return uploadPdf(file, title, topic, subjectId, null, course, semester, description, pageCount, downloadAllowed, adminUserId);
+        return uploadPdf(file, null, title, topic, subjectId, null, course, semester, description, pageCount, downloadAllowed, adminUserId);
     }
 
     @Transactional
     public PdfResponse uploadPdf(MultipartFile file,
+                                 String title,
+                                 String topic,
+                                 String subjectId,
+                                 String subjectName,
+                                 String course,
+                                 String semester,
+                                 String description,
+                                 int pageCount,
+                                 boolean downloadAllowed,
+                                 String adminUserId) {
+        return uploadPdf(file, null, title, topic, subjectId, subjectName, course, semester, description, pageCount, downloadAllowed, adminUserId);
+    }
+
+    @Transactional
+    public PdfResponse uploadPdf(MultipartFile file,
+                                 MultipartFile thumbnailFile,
                                  String title,
                                  String topic,
                                  String subjectId,
@@ -169,6 +209,21 @@ public class PdfDocumentService {
             storageKey = fileStorageService.storePdf(file);
         }
 
+        // Process optional thumbnail image
+        String thumbnailUrl = null;
+        String thumbnailPublicId = null;
+        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            if (cloudinaryService != null && cloudinaryService.isConfigured()) {
+                CloudinaryUploadResult thumbResult = cloudinaryService.uploadThumbnail(thumbnailFile);
+                if (thumbResult != null) {
+                    thumbnailUrl = thumbResult.getSecureUrl();
+                    thumbnailPublicId = thumbResult.getPublicId();
+                }
+            } else {
+                thumbnailUrl = fileStorageService.storeThumbnail(thumbnailFile);
+            }
+        }
+
         PdfDocument doc = new PdfDocument();
         doc.setId("pdf_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         doc.setTitle(title.trim());
@@ -180,6 +235,8 @@ public class PdfDocumentService {
         doc.setStorageKey(storageKey);
         doc.setCloudinaryPublicId(cloudinaryPublicId);
         doc.setCloudinarySecureUrl(cloudinarySecureUrl);
+        doc.setThumbnailUrl(thumbnailUrl);
+        doc.setThumbnailPublicId(thumbnailPublicId);
         doc.setFileName(file.getOriginalFilename() != null ? file.getOriginalFilename() : "document.pdf");
         doc.setFileSize(formattedSize);
         doc.setPageCount(Math.max(1, pageCount));
@@ -203,11 +260,29 @@ public class PdfDocumentService {
                                          boolean downloadAllowed,
                                          boolean published,
                                          String adminUserId) {
-        return updatePdfMetadata(id, title, topic, subjectId, null, course, semester, description, pageCount, downloadAllowed, published, adminUserId);
+        return updatePdfMetadata(id, null, false, title, topic, subjectId, null, course, semester, description, pageCount, downloadAllowed, published, adminUserId);
     }
 
     @Transactional
     public PdfResponse updatePdfMetadata(String id,
+                                         String title,
+                                         String topic,
+                                         String subjectId,
+                                         String subjectName,
+                                         String course,
+                                         String semester,
+                                         String description,
+                                         int pageCount,
+                                         boolean downloadAllowed,
+                                         boolean published,
+                                         String adminUserId) {
+        return updatePdfMetadata(id, null, false, title, topic, subjectId, subjectName, course, semester, description, pageCount, downloadAllowed, published, adminUserId);
+    }
+
+    @Transactional
+    public PdfResponse updatePdfMetadata(String id,
+                                         MultipartFile thumbnailFile,
+                                         boolean removeThumbnail,
                                          String title,
                                          String topic,
                                          String subjectId,
@@ -237,6 +312,28 @@ public class PdfDocumentService {
         doc.setDownloadAllowed(downloadAllowed);
         doc.setPublished(published);
 
+        // Thumbnail updates
+        if (removeThumbnail) {
+            if (doc.getThumbnailPublicId() != null && cloudinaryService != null) {
+                cloudinaryService.deleteThumbnail(doc.getThumbnailPublicId());
+            }
+            doc.setThumbnailUrl(null);
+            doc.setThumbnailPublicId(null);
+        } else if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            if (doc.getThumbnailPublicId() != null && cloudinaryService != null) {
+                cloudinaryService.deleteThumbnail(doc.getThumbnailPublicId());
+            }
+            if (cloudinaryService != null && cloudinaryService.isConfigured()) {
+                CloudinaryUploadResult thumbResult = cloudinaryService.uploadThumbnail(thumbnailFile);
+                if (thumbResult != null) {
+                    doc.setThumbnailUrl(thumbResult.getSecureUrl());
+                    doc.setThumbnailPublicId(thumbResult.getPublicId());
+                }
+            } else {
+                doc.setThumbnailUrl(fileStorageService.storeThumbnail(thumbnailFile));
+            }
+        }
+
         PdfDocument saved = pdfRepository.save(doc);
         return toResponse(saved, adminUserId);
     }
@@ -251,6 +348,13 @@ public class PdfDocumentService {
         if (doc.getCloudinaryPublicId() != null && !doc.getCloudinaryPublicId().isBlank()) {
             if (cloudinaryService != null) {
                 cloudinaryService.deletePdf(doc.getCloudinaryPublicId());
+            }
+        }
+
+        // Delete thumbnail from Cloudinary if stored there
+        if (doc.getThumbnailPublicId() != null && !doc.getThumbnailPublicId().isBlank()) {
+            if (cloudinaryService != null) {
+                cloudinaryService.deleteThumbnail(doc.getThumbnailPublicId());
             }
         }
 
@@ -290,6 +394,7 @@ public class PdfDocumentService {
         resp.setDownloadUrl("/api/pdfs/" + doc.getId() + "/download");
         resp.setCloudinaryPublicId(doc.getCloudinaryPublicId());
         resp.setCloudinarySecureUrl(doc.getCloudinarySecureUrl());
+        resp.setThumbnailUrl(doc.getThumbnailUrl());
 
         if (currentUserId != null) {
             resp.setSaved(readLaterRepository.existsByUserIdAndPdfId(currentUserId, doc.getId()));

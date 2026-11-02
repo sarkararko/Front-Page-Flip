@@ -16,6 +16,7 @@ import {
   X,
   Layers,
   Sparkles,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { User, Subject, PdfResource } from '../../types';
 import { ApiService } from '../../services/api';
@@ -60,6 +61,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [pdfFileData, setPdfFileData] = useState<string | null>(null);
   const [pdfFileName, setPdfFileName] = useState('');
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [pdfThumbnailUrl, setPdfThumbnailUrl] = useState<string | null>(null);
+  const [pdfThumbnailPreview, setPdfThumbnailPreview] = useState<string | null>(null);
+  const [pdfThumbnailFile, setPdfThumbnailFile] = useState<File | null>(null);
+  const [pdfThumbnailName, setPdfThumbnailName] = useState('');
+  const [removeThumbnail, setRemoveThumbnail] = useState(false);
 
   // Confirmation dialogs
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -167,6 +173,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setPdfIsPublished(pdf.isPublished);
       setPdfFileData(pdf.fileData || null);
       setPdfFileName(pdf.fileName || '');
+      setPdfThumbnailUrl(pdf.thumbnailUrl || null);
+      setPdfThumbnailPreview(pdf.thumbnailUrl || null);
+      setPdfThumbnailFile(null);
+      setPdfThumbnailName('');
+      setRemoveThumbnail(false);
     } else {
       setEditingPdf(null);
       setPdfTitle('');
@@ -181,8 +192,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setPdfIsPublished(true);
       setPdfFileData(null);
       setPdfFileName('');
+      setPdfThumbnailUrl(null);
+      setPdfThumbnailPreview(null);
+      setPdfThumbnailFile(null);
+      setPdfThumbnailName('');
+      setRemoveThumbnail(false);
     }
     setIsPdfModalOpen(true);
+  };
+
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Supported formats: JPG, JPEG, PNG, WEBP
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    const lowerName = file.name.toLowerCase();
+    const hasValidExt = validExtensions.some((ext) => lowerName.endsWith(ext));
+    const validMimes = ['image/jpeg', 'image/png', 'image/webp'];
+
+    if (!hasValidExt && !validMimes.includes(file.type)) {
+      showToast('error', 'Invalid format. Supported image formats: JPG, JPEG, PNG, and WEBP.');
+      return;
+    }
+
+    // Size limit: 5 MB max
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('error', 'Thumbnail image size exceeds 5 MB limit.');
+      return;
+    }
+
+    setPdfThumbnailFile(file);
+    setPdfThumbnailName(file.name);
+    setRemoveThumbnail(false);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setPdfThumbnailPreview(dataUrl);
+      setPdfThumbnailUrl(dataUrl);
+      showToast('success', `Thumbnail "${file.name}" loaded.`);
+    };
+    reader.onerror = () => {
+      showToast('error', 'Failed to read thumbnail image file.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveThumbnail = () => {
+    setPdfThumbnailFile(null);
+    setPdfThumbnailPreview(null);
+    setPdfThumbnailUrl(null);
+    setPdfThumbnailName('');
+    setRemoveThumbnail(true);
+    showToast('success', 'Thumbnail removed. Reverted to default cover placeholder.');
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,6 +328,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ? matchedSub.id
       : editingPdf?.subjectId || `sub-${cleanSubject.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
     const subName = matchedSub ? matchedSub.name : cleanSubject;
+    const effectiveThumbnailUrl = removeThumbnail
+      ? undefined
+      : (pdfThumbnailUrl || (editingPdf ? editingPdf.thumbnailUrl : undefined));
 
     try {
       if (editingPdf) {
@@ -283,6 +349,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           isPublished: pdfIsPublished,
           fileData: pdfFileData || editingPdf.fileData,
           fileName: pdfFileName || editingPdf.fileName,
+          thumbnailUrl: effectiveThumbnailUrl,
         });
         showToast('success', `PDF resource "${pdfTitle}" updated.`);
       } else {
@@ -300,6 +367,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           isPublished: pdfIsPublished,
           fileData: pdfFileData || undefined,
           fileName: pdfFileName || undefined,
+          thumbnailUrl: effectiveThumbnailUrl,
           thumbnailStyle: 'standard',
           contentPages: [
             {
@@ -642,8 +710,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {pdfs.map((pdf) => (
                   <tr key={pdf.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-3.5 px-4">
-                      <p className="font-bold text-[#102A56]">{pdf.title}</p>
-                      <p className="text-[11px] text-slate-400 font-medium">{pdf.topic}</p>
+                      <div className="flex items-center gap-2.5">
+                        {pdf.thumbnailUrl ? (
+                          <img
+                            src={pdf.thumbnailUrl}
+                            alt=""
+                            className="w-8 h-10 rounded object-cover border border-slate-200 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-10 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+                            <FileText className="w-4 h-4 text-blue-500/70" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-bold text-[#102A56] truncate max-w-xs">{pdf.title}</p>
+                          <p className="text-[11px] text-slate-400 font-medium truncate max-w-xs">{pdf.topic}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-700">{pdf.subjectName}</td>
                     <td className="py-3.5 px-4 text-slate-500">{pdf.semester || '—'}</td>
@@ -865,6 +948,87 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Optional Cover Thumbnail Image */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-[#102A56]">
+                    Cover Thumbnail Image <span className="text-slate-400 font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  {pdfThumbnailPreview && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveThumbnail}
+                      className="text-[11px] text-red-500 hover:text-red-700 font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Remove custom thumbnail and revert to default cover"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Remove Thumbnail</span>
+                    </button>
+                  )}
+                </div>
+
+                {pdfThumbnailPreview ? (
+                  <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl">
+                    <div className="w-16 h-20 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0 shadow-xs relative">
+                      <img
+                        src={pdfThumbnailPreview}
+                        alt="Thumbnail preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-[#102A56] text-xs truncate">
+                        {pdfThumbnailName || (editingPdf?.thumbnailUrl ? 'Current Document Thumbnail' : 'Selected Thumbnail')}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Displays on library cards and search results
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <label className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-[#1677FF] bg-blue-50 hover:bg-blue-100 rounded-lg cursor-pointer transition-colors">
+                          <Upload className="w-3 h-3" />
+                          <span>Replace Image</span>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                            onChange={handleThumbnailChange}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleRemoveThumbnail}
+                          className="px-2.5 py-1 text-[11px] font-medium text-slate-500 hover:text-red-600 rounded-lg hover:bg-slate-100 transition-colors"
+                        >
+                          Revert to Default Cover
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative border-2 border-dashed border-[#CBD5E1] hover:border-[#1677FF] transition-colors rounded-xl p-3 bg-[#F8FAFC] text-center">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                      onChange={handleThumbnailChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <div className="flex items-center justify-center gap-2.5 pointer-events-none py-1">
+                      <div className="w-8 h-8 rounded-full bg-blue-50 text-[#1677FF] flex items-center justify-center shrink-0">
+                        <ImageIcon className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-[#102A56] text-xs">
+                          Upload optional custom thumbnail
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          JPG, PNG, or WEBP up to 5 MB • Leave empty for default cover
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

@@ -26,8 +26,11 @@ public class EmailService {
     @Value("${spring.mail.password:}")
     private String mailPassword;
 
-    @Value("${app.mail.from:${spring.mail.from:${MAIL_FROM:no-reply@frontpageflip.com}}}")
+    @Value("${app.mail.from:${MAIL_FROM:${SMTP_FROM:${BREVO_FROM:${BREVO_SENDER_EMAIL:${app.security.creator-email:arkaparna.ds@gmail.com}}}}}}")
     private String fromEmail;
+
+    @Value("${app.security.creator-email:${CREATOR_EMAIL:${ADMIN_EMAIL:arkaparna.ds@gmail.com}}}")
+    private String creatorEmail;
 
     @Value("${app.mail.from-name:Front-Page Flip}")
     private String fromName;
@@ -148,14 +151,20 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
 
-            // Determine effective sender: if fromEmail is the default unverified domain, and mailUsername is an email, prefer mailUsername
+            // Determine effective sender: Brevo strictly enforces a verified sender address.
             String effectiveFrom = fromEmail;
-            if ((effectiveFrom == null || effectiveFrom.contains("frontpageflip.com")) &&
-                    mailUsername != null && mailUsername.contains("@")) {
-                effectiveFrom = mailUsername.trim();
+            if (effectiveFrom == null || effectiveFrom.isBlank() || effectiveFrom.contains("frontpageflip.com")) {
+                if (creatorEmail != null && !creatorEmail.isBlank() && creatorEmail.contains("@")) {
+                    effectiveFrom = creatorEmail.trim();
+                } else if (mailUsername != null && mailUsername.contains("@") && !mailUsername.contains("smtp-brevo.com")) {
+                    effectiveFrom = mailUsername.trim();
+                } else {
+                    effectiveFrom = "arkaparna.ds@gmail.com";
+                }
             }
 
             helper.setFrom(new InternetAddress(effectiveFrom, fromName));
+            helper.setReplyTo(new InternetAddress(effectiveFrom, fromName));
             helper.setTo(toEmail);
             helper.setSubject(subject);
             helper.setText(plainText, htmlContent);

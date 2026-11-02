@@ -40,6 +40,9 @@ export interface PdfResource {
   isPublished: boolean;
   downloadAllowed: boolean;
   thumbnailStyle?: 'dark-notebook' | 'lecture-sheet' | 'green-board' | 'circuit-dark' | 'standard';
+  thumbnailUrl?: string; // Optional custom thumbnail image (JPG, PNG, WEBP)
+  cloudinarySecureUrl?: string;
+  fileUrl?: string;
   downloadUrl?: string;
   fileName?: string;
   fileData?: string; // Real uploaded PDF Base64 / Blob data URI

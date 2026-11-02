@@ -163,7 +163,13 @@ export const StorageService = {
 
     // Recalculate true dynamic PDF counts from actual published records in the database
     const mapped = subjects.map((s) => {
-      const realCount = pdfs.filter((p) => p.subjectId === s.id && p.isPublished).length;
+      const realCount = pdfs.filter(
+        (p) =>
+          (p.subjectId === s.id ||
+            p.subjectId === s.slug ||
+            (p.subjectName && p.subjectName.trim().toLowerCase() === s.name.trim().toLowerCase())) &&
+          p.isPublished
+      ).length;
       return { ...s, pdfCount: realCount };
     });
 
@@ -201,35 +207,26 @@ export const StorageService = {
   },
 
   savePdf(pdf: PdfResource): void {
-    const pdfs = this.getPdfs();
-    const existingIndex = pdfs.findIndex((p) => p.id === pdf.id);
-    if (existingIndex >= 0) {
-      pdfs[existingIndex] = pdf;
-    } else {
-      pdfs.unshift(pdf);
-    }
-    writeToStorage(PDFS_STORAGE_KEY, pdfs);
-
-    // Update real subject count in storage
+    // 1. Resolve or catalog the associated subject first so PDF has matching subjectId and subjectName
     const subjects = this.getSubjects();
     let subIndex = subjects.findIndex((s) => s.id === pdf.subjectId);
+    if (subIndex < 0 && pdf.subjectId) {
+      subIndex = subjects.findIndex((s) => s.slug === pdf.subjectId.toLowerCase());
+    }
     if (subIndex < 0 && pdf.subjectName) {
       subIndex = subjects.findIndex((s) => s.name.trim().toLowerCase() === pdf.subjectName.trim().toLowerCase());
     }
 
     if (subIndex >= 0) {
-      const targetSubId = subjects[subIndex].id;
-      pdf.subjectId = targetSubId;
-      const count = pdfs.filter(
-        (p) => (p.subjectId === targetSubId || p.subjectName.trim().toLowerCase() === subjects[subIndex].name.trim().toLowerCase()) && p.isPublished
-      ).length;
-      subjects[subIndex].pdfCount = count;
-      writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
+      const targetSub = subjects[subIndex];
+      pdf.subjectId = targetSub.id;
+      pdf.subjectName = targetSub.name;
     } else if (pdf.subjectName && pdf.subjectName.trim()) {
       // Auto-catalog new typed subject in storage
       const cleanName = pdf.subjectName.trim();
+      const newSubId = pdf.subjectId && pdf.subjectId.startsWith('sub-') ? pdf.subjectId : `sub-${Date.now()}`;
       const newSub: Subject = {
-        id: pdf.subjectId || `sub-${Date.now()}`,
+        id: newSubId,
         name: cleanName,
         slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `sub-${Date.now()}`,
         icon: 'book',
@@ -240,9 +237,34 @@ export const StorageService = {
         topics: [pdf.topic || 'General'],
         createdAt: new Date().toISOString(),
       };
+      pdf.subjectId = newSub.id;
+      pdf.subjectName = newSub.name;
       subjects.push(newSub);
       writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
     }
+
+    // 2. Persist PDF resource
+    const pdfs = this.getPdfs();
+    const existingIndex = pdfs.findIndex((p) => p.id === pdf.id);
+    if (existingIndex >= 0) {
+      pdfs[existingIndex] = pdf;
+    } else {
+      pdfs.unshift(pdf);
+    }
+    writeToStorage(PDFS_STORAGE_KEY, pdfs);
+
+    // 3. Update dynamic PDF counts on all subjects
+    const updatedSubjects = this.getSubjects().map((s) => {
+      const count = pdfs.filter(
+        (p) =>
+          (p.subjectId === s.id ||
+            p.subjectId === s.slug ||
+            (p.subjectName && p.subjectName.trim().toLowerCase() === s.name.trim().toLowerCase())) &&
+          p.isPublished
+      ).length;
+      return { ...s, pdfCount: count };
+    });
+    writeToStorage(SUBJECTS_STORAGE_KEY, updatedSubjects);
   },
 
   deletePdf(id: string): void {
@@ -250,20 +272,18 @@ export const StorageService = {
     const pdfs = this.getPdfs().filter((p) => p.id !== id);
     writeToStorage(PDFS_STORAGE_KEY, pdfs);
 
-    // Update subject count
-    if (pdf) {
-      const subjects = this.getSubjects();
+    // Update subject count across all subjects
+    const subjects = this.getSubjects().map((s) => {
       const count = pdfs.filter(
-        (p) => (p.subjectId === pdf.subjectId || (pdf.subjectName && p.subjectName.trim().toLowerCase() === pdf.subjectName.trim().toLowerCase())) && p.isPublished
+        (p) =>
+          (p.subjectId === s.id ||
+            p.subjectId === s.slug ||
+            (p.subjectName && p.subjectName.trim().toLowerCase() === s.name.trim().toLowerCase())) &&
+          p.isPublished
       ).length;
-      const subIndex = subjects.findIndex(
-        (s) => s.id === pdf.subjectId || (pdf.subjectName && s.name.trim().toLowerCase() === pdf.subjectName.trim().toLowerCase())
-      );
-      if (subIndex >= 0) {
-        subjects[subIndex].pdfCount = count;
-        writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
-      }
-    }
+      return { ...s, pdfCount: count };
+    });
+    writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
   },
 
   // --- FAVORITES (Scoped per user) ---

@@ -17,8 +17,24 @@ export const PdfCard: React.FC<PdfCardProps> = ({
   onToggleReadLater,
   onViewPdf,
 }) => {
-  // Render authentic styled thumbnail according to thumbnailStyle
+  const [imageError, setImageError] = React.useState(false);
+
+  // Render authentic styled thumbnail according to custom image or thumbnailStyle
   const renderThumbnail = () => {
+    if (pdf.thumbnailUrl && !imageError) {
+      return (
+        <div className="w-full h-32 rounded-lg bg-slate-100 overflow-hidden relative border border-slate-200/80 shadow-inner flex items-center justify-center">
+          <img
+            src={pdf.thumbnailUrl}
+            alt={pdf.title}
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+          />
+        </div>
+      );
+    }
+
     switch (pdf.thumbnailStyle) {
       case 'dark-notebook':
         return (

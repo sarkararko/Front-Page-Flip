@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ChevronRight,
   Star,
@@ -8,6 +8,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { Subject, PdfResource } from '../../types';
+import { ApiService } from '../../services/api';
 import { PdfCard } from '../common/PdfCard';
 
 interface SubjectDetailPageProps {
@@ -35,23 +36,85 @@ export const SubjectDetailPage: React.FC<SubjectDetailPageProps> = ({
 }) => {
   const [selectedTopic, setSelectedTopic] = useState<string>('all');
   const [searchInSubject, setSearchInSubject] = useState('');
+  const [freshPdfs, setFreshPdfs] = useState<PdfResource[]>([]);
 
-  // PDFs for this subject
-  const subjectPdfs = pdfs.filter((p) => p.subjectId === subject.id && p.isPublished);
+  // Fetch latest PDFs for this subject to ensure newly uploaded PDFs appear immediately
+  useEffect(() => {
+    let isMounted = true;
+    ApiService.getPdfs({ subjectId: subject.id }).then((list) => {
+      if (isMounted && list && list.length > 0) {
+        setFreshPdfs(list);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [subject.id, subject.name]);
+
+  // Combine parent-provided PDFs with fresh subject PDFs
+  const allCandidatePdfs = useMemo(() => {
+    const map = new Map<string, PdfResource>();
+    pdfs.forEach((p) => map.set(p.id, p));
+    freshPdfs.forEach((p) => map.set(p.id, p));
+    return Array.from(map.values());
+  }, [pdfs, freshPdfs]);
+
+  // Normalize subject identifiers
+  const cleanSubName = subject.name.trim().toLowerCase();
+  const cleanSubSlug = (subject.slug || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+  // Resilient subject matching: matches by ID, slug, or subject name
+  const isMatchForSubject = (p: PdfResource) => {
+    if (!p.isPublished) return false;
+    if (p.subjectId === subject.id) return true;
+    if (cleanSubSlug && p.subjectId?.toLowerCase() === cleanSubSlug) return true;
+    if (p.subjectName && p.subjectName.trim().toLowerCase() === cleanSubName) return true;
+    if (p.subjectId && p.subjectId.trim().toLowerCase() === cleanSubName) return true;
+    const pSlug = (p.subjectName || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    if (cleanSubSlug && pSlug === cleanSubSlug) return true;
+    const pIdSlug = (p.subjectId || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    if (cleanSubSlug && pIdSlug === cleanSubSlug) return true;
+    return false;
+  };
+
+  const subjectPdfs = useMemo(() => {
+    return allCandidatePdfs.filter(isMatchForSubject);
+  }, [allCandidatePdfs, subject.id, cleanSubName, cleanSubSlug]);
 
   // Available topics for this subject
-  const topics = subject.topics || Array.from(new Set(subjectPdfs.map((p) => p.topic)));
+  const topics = useMemo(() => {
+    const topicSet = new Set<string>();
+    if (subject.topics && Array.isArray(subject.topics)) {
+      subject.topics.forEach((t) => t && topicSet.add(t));
+    }
+    subjectPdfs.forEach((p) => {
+      if (p.topic && p.topic.trim()) topicSet.add(p.topic.trim());
+    });
+    return Array.from(topicSet);
+  }, [subject.topics, subjectPdfs]);
 
   // Filtered by topic and local search
-  const displayedPdfs = subjectPdfs.filter((p) => {
-    const matchTopic = selectedTopic === 'all' || p.topic.toLowerCase() === selectedTopic.toLowerCase();
-    const matchSearch =
-      !searchInSubject.trim() ||
-      p.title.toLowerCase().includes(searchInSubject.toLowerCase()) ||
-      p.topic.toLowerCase().includes(searchInSubject.toLowerCase()) ||
-      (p.description && p.description.toLowerCase().includes(searchInSubject.toLowerCase()));
-    return matchTopic && matchSearch;
-  });
+  const displayedPdfs = useMemo(() => {
+    return subjectPdfs.filter((p) => {
+      const matchTopic = selectedTopic === 'all' || p.topic.toLowerCase() === selectedTopic.toLowerCase();
+      const matchSearch =
+        !searchInSubject.trim() ||
+        p.title.toLowerCase().includes(searchInSubject.toLowerCase()) ||
+        p.topic.toLowerCase().includes(searchInSubject.toLowerCase()) ||
+        (p.description && p.description.toLowerCase().includes(searchInSubject.toLowerCase()));
+      return matchTopic && matchSearch;
+    });
+  }, [subjectPdfs, selectedTopic, searchInSubject]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

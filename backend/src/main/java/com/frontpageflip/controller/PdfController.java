@@ -89,6 +89,7 @@ public class PdfController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PdfResponse> uploadPdf(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail,
             @RequestParam("title") String title,
             @RequestParam("topic") String topic,
             @RequestParam(value = "subjectId", required = false) String subjectId,
@@ -102,15 +103,17 @@ public class PdfController {
     ) {
         String adminUserId = (String) authentication.getPrincipal();
         PdfResponse response = pdfService.uploadPdf(
-                file, title, topic, subjectId, subjectName, course, semester, description, pageCount, downloadAllowed, adminUserId
+                file, thumbnail, title, topic, subjectId, subjectName, course, semester, description, pageCount, downloadAllowed, adminUserId
         );
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE})
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PdfResponse> updatePdf(
             @PathVariable String id,
+            @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail,
+            @RequestParam(value = "removeThumbnail", defaultValue = "false") boolean removeThumbnail,
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "topic", required = false) String topic,
             @RequestParam(value = "subjectId", required = false) String subjectId,
@@ -125,7 +128,7 @@ public class PdfController {
     ) {
         String adminUserId = (String) authentication.getPrincipal();
         PdfResponse response = pdfService.updatePdfMetadata(
-                id, title, topic, subjectId, subjectName, course, semester, description, pageCount, downloadAllowed, published, adminUserId
+                id, thumbnail, removeThumbnail, title, topic, subjectId, subjectName, course, semester, description, pageCount, downloadAllowed, published, adminUserId
         );
         return ResponseEntity.ok(response);
     }

@@ -45,7 +45,16 @@ export const BrowsePdfsPage: React.FC<BrowsePdfsPageProps> = ({
 
     // Subject Filter
     if (selectedSubjectId !== 'all') {
-      result = result.filter((p) => p.subjectId === selectedSubjectId);
+      const selectedSub = subjects.find((s) => s.id === selectedSubjectId);
+      const selName = selectedSub ? selectedSub.name.trim().toLowerCase() : '';
+      const selSlug = selectedSub?.slug ? selectedSub.slug.trim().toLowerCase() : '';
+
+      result = result.filter(
+        (p) =>
+          p.subjectId === selectedSubjectId ||
+          (selName && p.subjectName?.trim().toLowerCase() === selName) ||
+          (selSlug && p.subjectId?.toLowerCase() === selSlug)
+      );
     }
 
     // Semester Filter: PDFs marked 'All Semesters' are relevant to every semester

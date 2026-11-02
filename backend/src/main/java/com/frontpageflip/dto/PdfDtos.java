@@ -73,6 +73,7 @@ public class PdfDtos {
         private Integer readProgressPercent;
         private String cloudinaryPublicId;
         private String cloudinarySecureUrl;
+        private String thumbnailUrl;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -136,5 +137,8 @@ public class PdfDtos {
 
         public String getCloudinarySecureUrl() { return cloudinarySecureUrl; }
         public void setCloudinarySecureUrl(String cloudinarySecureUrl) { this.cloudinarySecureUrl = cloudinarySecureUrl; }
+
+        public String getThumbnailUrl() { return thumbnailUrl; }
+        public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
     }
 }

@@ -157,6 +157,100 @@ public class CloudinaryService {
     }
 
     /**
+     * Validates and uploads an optional thumbnail image (JPG, PNG, WEBP) to Cloudinary.
+     */
+    public CloudinaryUploadResult uploadThumbnail(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return null;
+        }
+
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BadRequestException("Thumbnail image size exceeds maximum 5MB limit");
+        }
+
+        validateImageFormat(file);
+
+        if (!isConfigured() || this.cloudinary == null) {
+            throw new IllegalStateException("Cloudinary is not configured. Please ensure Cloudinary environment variables are set.");
+        }
+
+        String thumbnailFolder = (folder != null && !folder.isBlank())
+                ? folder.trim() + "/thumbnails"
+                : "front-page-flip/thumbnails";
+
+        try {
+            logger.info("Uploading thumbnail image '{}' ({} bytes) to Cloudinary folder '{}'...",
+                    file.getOriginalFilename(), file.getSize(), thumbnailFolder);
+
+            Map<String, Object> params = ObjectUtils.asMap(
+                    "resource_type", "image",
+                    "folder", thumbnailFolder,
+                    "use_filename", true,
+                    "unique_filename", true
+            );
+
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
+
+            String publicId = (String) uploadResult.get("public_id");
+            String secureUrl = (String) uploadResult.get("secure_url");
+
+            if (publicId == null || secureUrl == null) {
+                throw new RuntimeException("Cloudinary thumbnail upload did not return a valid public_id or secure_url");
+            }
+
+            logger.info("Thumbnail successfully uploaded to Cloudinary. public_id='{}', secure_url='{}'",
+                    publicId, secureUrl);
+
+            return new CloudinaryUploadResult(publicId, secureUrl, file.getOriginalFilename(), file.getSize());
+
+        } catch (IOException e) {
+            logger.error("Failed to read thumbnail image file stream: {}", e.getMessage());
+            throw new BadRequestException("Could not read uploaded thumbnail image file stream: " + e.getMessage());
+        } catch (Exception e) {
+            logger.error("Cloudinary thumbnail upload failed: {}", e.getMessage());
+            throw new RuntimeException("Cloudinary thumbnail upload failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Deletes an image thumbnail resource from Cloudinary.
+     */
+    public void deleteThumbnail(String publicId) {
+        if (publicId == null || publicId.isBlank()) {
+            return;
+        }
+
+        if (!isConfigured() || this.cloudinary == null) {
+            return;
+        }
+
+        try {
+            logger.info("Deleting thumbnail resource from Cloudinary with public_id='{}'...", publicId);
+            cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", "image"));
+        } catch (Exception e) {
+            logger.warn("Failed to delete thumbnail from Cloudinary with public_id='{}': {}", publicId, e.getMessage());
+        }
+    }
+
+    private void validateImageFormat(MultipartFile file) {
+        String filename = file.getOriginalFilename();
+        if (filename == null) {
+            throw new BadRequestException("Thumbnail file name is missing");
+        }
+        String lower = filename.toLowerCase();
+        if (!lower.endsWith(".jpg") && !lower.endsWith(".jpeg") && !lower.endsWith(".png") && !lower.endsWith(".webp")) {
+            throw new BadRequestException("Invalid image format. Supported formats: JPG, JPEG, PNG, WEBP.");
+        }
+        String contentType = file.getContentType();
+        if (contentType != null && !contentType.isBlank()) {
+            String lowerContent = contentType.toLowerCase();
+            if (!lowerContent.startsWith("image/") && !lowerContent.contains("jpeg") && !lowerContent.contains("png") && !lowerContent.contains("webp")) {
+                throw new BadRequestException("Invalid image content type: " + contentType);
+            }
+        }
+    }
+
+    /**
      * Inspects stream magic bytes to guarantee file is a genuine PDF.
      */
     private void validatePdfFormat(MultipartFile file) {

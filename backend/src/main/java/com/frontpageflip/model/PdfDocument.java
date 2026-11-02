@@ -39,6 +39,12 @@ public class PdfDocument {
     @Column(name = "cloudinary_secure_url", length = 1024)
     private String cloudinarySecureUrl;
 
+    @Column(name = "thumbnail_url", length = 1024)
+    private String thumbnailUrl;
+
+    @Column(name = "thumbnail_public_id", length = 255)
+    private String thumbnailPublicId;
+
     @Column(name = "file_name", nullable = false)
     private String fileName;
 
@@ -110,6 +116,12 @@ public class PdfDocument {
 
     public String getCloudinarySecureUrl() { return cloudinarySecureUrl; }
     public void setCloudinarySecureUrl(String cloudinarySecureUrl) { this.cloudinarySecureUrl = cloudinarySecureUrl; }
+
+    public String getThumbnailUrl() { return thumbnailUrl; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
+
+    public String getThumbnailPublicId() { return thumbnailPublicId; }
+    public void setThumbnailPublicId(String thumbnailPublicId) { this.thumbnailPublicId = thumbnailPublicId; }
 
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
