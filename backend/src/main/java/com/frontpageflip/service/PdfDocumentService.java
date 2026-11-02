@@ -92,6 +92,36 @@ public class PdfDocumentService {
         return fileStorageService.loadPdfAsResource(doc.getStorageKey());
     }
 
+    private Subject resolveOrCreateSubject(String subjectId, String subjectName) {
+        Subject subject = null;
+        if (subjectId != null && !subjectId.isBlank()) {
+            subject = subjectRepository.findById(subjectId).orElse(null);
+        }
+        if (subject == null && subjectName != null && !subjectName.isBlank()) {
+            String cleanName = subjectName.trim();
+            subject = subjectRepository.findByNameIgnoreCase(cleanName).orElse(null);
+            if (subject == null) {
+                subject = new Subject();
+                subject.setId("sub_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
+                subject.setName(cleanName);
+                String slug = cleanName.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
+                if (slug.isBlank() || subjectRepository.existsBySlug(slug)) {
+                    slug = (slug.isBlank() ? "subject" : slug) + "-" + UUID.randomUUID().toString().substring(0, 6);
+                }
+                subject.setSlug(slug);
+                subject.setIcon("book");
+                subject.setIconColor("#1677FF");
+                subject.setDescription("Course notes and study materials for " + cleanName);
+                subject.setPdfCount(0);
+                subject = subjectRepository.save(subject);
+            }
+        }
+        if (subject == null) {
+            throw new BadRequestException("Subject is required. Please type or select a subject.");
+        }
+        return subject;
+    }
+
     @Transactional
     public PdfResponse uploadPdf(MultipartFile file,
                                  String title,
@@ -103,9 +133,23 @@ public class PdfDocumentService {
                                  int pageCount,
                                  boolean downloadAllowed,
                                  String adminUserId) {
+        return uploadPdf(file, title, topic, subjectId, null, course, semester, description, pageCount, downloadAllowed, adminUserId);
+    }
 
-        Subject subject = subjectRepository.findById(subjectId)
-                .orElseThrow(() -> new BadRequestException("Selected subject does not exist."));
+    @Transactional
+    public PdfResponse uploadPdf(MultipartFile file,
+                                 String title,
+                                 String topic,
+                                 String subjectId,
+                                 String subjectName,
+                                 String course,
+                                 String semester,
+                                 String description,
+                                 int pageCount,
+                                 boolean downloadAllowed,
+                                 String adminUserId) {
+
+        Subject subject = resolveOrCreateSubject(subjectId, subjectName);
 
         User admin = userRepository.findById(adminUserId).orElse(null);
 
@@ -159,13 +203,28 @@ public class PdfDocumentService {
                                          boolean downloadAllowed,
                                          boolean published,
                                          String adminUserId) {
+        return updatePdfMetadata(id, title, topic, subjectId, null, course, semester, description, pageCount, downloadAllowed, published, adminUserId);
+    }
+
+    @Transactional
+    public PdfResponse updatePdfMetadata(String id,
+                                         String title,
+                                         String topic,
+                                         String subjectId,
+                                         String subjectName,
+                                         String course,
+                                         String semester,
+                                         String description,
+                                         int pageCount,
+                                         boolean downloadAllowed,
+                                         boolean published,
+                                         String adminUserId) {
 
         PdfDocument doc = pdfRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("PDF document not found with ID: " + id));
 
-        if (subjectId != null && !subjectId.equals(doc.getSubject().getId())) {
-            Subject subject = subjectRepository.findById(subjectId)
-                    .orElseThrow(() -> new BadRequestException("Selected subject does not exist."));
+        if ((subjectId != null && !subjectId.isBlank()) || (subjectName != null && !subjectName.isBlank())) {
+            Subject subject = resolveOrCreateSubject(subjectId, subjectName);
             doc.setSubject(subject);
         }
 

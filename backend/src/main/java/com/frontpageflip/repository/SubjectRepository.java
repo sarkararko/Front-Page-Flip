@@ -12,6 +12,7 @@ import java.util.Optional;
 @Repository
 public interface SubjectRepository extends JpaRepository<Subject, String> {
     Optional<Subject> findBySlug(String slug);
+    Optional<Subject> findByNameIgnoreCase(String name);
     boolean existsBySlug(String slug);
     boolean existsByNameIgnoreCase(String name);
 

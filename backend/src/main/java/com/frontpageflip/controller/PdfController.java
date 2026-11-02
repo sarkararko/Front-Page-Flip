@@ -91,7 +91,8 @@ public class PdfController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("title") String title,
             @RequestParam("topic") String topic,
-            @RequestParam("subjectId") String subjectId,
+            @RequestParam(value = "subjectId", required = false) String subjectId,
+            @RequestParam(value = "subjectName", required = false) String subjectName,
             @RequestParam(value = "course", defaultValue = "B.Tech / B.Sc") String course,
             @RequestParam(value = "semester", defaultValue = "Semester 1") String semester,
             @RequestParam(value = "description", required = false) String description,
@@ -101,7 +102,7 @@ public class PdfController {
     ) {
         String adminUserId = (String) authentication.getPrincipal();
         PdfResponse response = pdfService.uploadPdf(
-                file, title, topic, subjectId, course, semester, description, pageCount, downloadAllowed, adminUserId
+                file, title, topic, subjectId, subjectName, course, semester, description, pageCount, downloadAllowed, adminUserId
         );
         return ResponseEntity.ok(response);
     }
@@ -113,6 +114,7 @@ public class PdfController {
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "topic", required = false) String topic,
             @RequestParam(value = "subjectId", required = false) String subjectId,
+            @RequestParam(value = "subjectName", required = false) String subjectName,
             @RequestParam(value = "course", required = false) String course,
             @RequestParam(value = "semester", required = false) String semester,
             @RequestParam(value = "description", required = false) String description,
@@ -123,7 +125,7 @@ public class PdfController {
     ) {
         String adminUserId = (String) authentication.getPrincipal();
         PdfResponse response = pdfService.updatePdfMetadata(
-                id, title, topic, subjectId, course, semester, description, pageCount, downloadAllowed, published, adminUserId
+                id, title, topic, subjectId, subjectName, course, semester, description, pageCount, downloadAllowed, published, adminUserId
         );
         return ResponseEntity.ok(response);
     }

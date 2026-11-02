@@ -48,7 +48,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [editingPdf, setEditingPdf] = useState<PdfResource | null>(null);
   const [pdfTitle, setPdfTitle] = useState('');
-  const [pdfSubjectId, setPdfSubjectId] = useState('');
+  const [pdfSubjectName, setPdfSubjectName] = useState('');
   const [pdfTopic, setPdfTopic] = useState('');
   const [pdfCourse, setPdfCourse] = useState('B.Tech / B.Sc');
   const [pdfSemester, setPdfSemester] = useState('Semester 1');
@@ -156,7 +156,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (pdf) {
       setEditingPdf(pdf);
       setPdfTitle(pdf.title);
-      setPdfSubjectId(pdf.subjectId);
+      setPdfSubjectName(pdf.subjectName || '');
       setPdfTopic(pdf.topic);
       setPdfCourse(pdf.course || 'B.Tech / B.Sc');
       setPdfSemester(pdf.semester || 'Semester 1');
@@ -170,7 +170,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } else {
       setEditingPdf(null);
       setPdfTitle('');
-      setPdfSubjectId(subjects[0]?.id || '');
+      setPdfSubjectName('');
       setPdfTopic('');
       setPdfCourse('B.Tech / B.Sc');
       setPdfSemester('Semester 1');
@@ -227,20 +227,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleSavePdf = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pdfTitle.trim() || !pdfSubjectId || !pdfTopic.trim()) {
+    const cleanSubject = pdfSubjectName.trim();
+    if (!pdfTitle.trim() || !cleanSubject || !pdfTopic.trim()) {
       showToast('error', 'Title, subject, and topic are required.');
       return;
     }
 
-    const selectedSub = subjects.find((s) => s.id === pdfSubjectId);
-    const subName = selectedSub ? selectedSub.name : 'Computer Science';
+    // Resolve or automatically link the subject
+    let matchedSub = subjects.find(
+      (s) => s.name.trim().toLowerCase() === cleanSubject.toLowerCase()
+    );
+
+    if (!matchedSub) {
+      try {
+        const newSlug =
+          cleanSubject
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '') || `sub-${Date.now()}`;
+        matchedSub = await ApiService.createSubject({
+          name: cleanSubject,
+          slug: newSlug,
+          icon: 'book',
+          iconColor: '#1677FF',
+          iconBgColor: '#EFF6FF',
+          pdfCount: 0,
+          description: `Course notes and study materials for ${cleanSubject}.`,
+          topics: [pdfTopic.trim()],
+        });
+        onRefreshData();
+      } catch (subErr) {
+        console.warn('Subject auto-creation fallback:', subErr);
+      }
+    }
+
+    const subId = matchedSub
+      ? matchedSub.id
+      : editingPdf?.subjectId || `sub-${cleanSubject.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    const subName = matchedSub ? matchedSub.name : cleanSubject;
 
     try {
       if (editingPdf) {
         await ApiService.updatePdf({
           ...editingPdf,
           title: pdfTitle.trim(),
-          subjectId: pdfSubjectId,
+          subjectId: subId,
           subjectName: subName,
           topic: pdfTopic.trim(),
           course: pdfCourse.trim(),
@@ -257,7 +288,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       } else {
         await ApiService.createPdf({
           title: pdfTitle.trim(),
-          subjectId: pdfSubjectId,
+          subjectId: subId,
           subjectName: subName,
           topic: pdfTopic.trim(),
           course: pdfCourse.trim(),
@@ -851,18 +882,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-[#102A56] mb-1">Subject *</label>
-                  <select
-                    value={pdfSubjectId}
-                    onChange={(e) => setPdfSubjectId(e.target.value)}
+                  <input
+                    type="text"
                     required
-                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden"
-                  >
-                    {subjects.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+                    value={pdfSubjectName}
+                    onChange={(e) => setPdfSubjectName(e.target.value)}
+                    placeholder="e.g. Data Structures & Algorithms"
+                    className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF]"
+                  />
                 </div>
 
                 <div>
@@ -894,6 +921,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <option value="Semester 6">Semester 6</option>
                     <option value="Semester 7">Semester 7</option>
                     <option value="Semester 8">Semester 8</option>
+                    <option value="All Semesters">All Semesters</option>
                   </select>
                 </div>
 

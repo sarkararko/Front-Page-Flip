@@ -34,7 +34,7 @@ export const BrowsePdfsPage: React.FC<BrowsePdfsPageProps> = ({
   const availableSemesters = useMemo(() => {
     const sems = new Set<string>();
     pdfs.forEach((p) => {
-      if (p.semester) sems.add(p.semester);
+      if (p.semester && p.semester !== 'All Semesters') sems.add(p.semester);
     });
     return Array.from(sems).sort();
   }, [pdfs]);
@@ -48,9 +48,9 @@ export const BrowsePdfsPage: React.FC<BrowsePdfsPageProps> = ({
       result = result.filter((p) => p.subjectId === selectedSubjectId);
     }
 
-    // Semester Filter
+    // Semester Filter: PDFs marked 'All Semesters' are relevant to every semester
     if (selectedSemester !== 'all') {
-      result = result.filter((p) => p.semester === selectedSemester);
+      result = result.filter((p) => p.semester === selectedSemester || p.semester === 'All Semesters');
     }
 
     // Search Query Filter (Title, Subject, Topic, Description)

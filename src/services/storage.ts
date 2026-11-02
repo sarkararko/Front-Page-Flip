@@ -212,10 +212,35 @@ export const StorageService = {
 
     // Update real subject count in storage
     const subjects = this.getSubjects();
-    const count = pdfs.filter((p) => p.subjectId === pdf.subjectId && p.isPublished).length;
-    const subIndex = subjects.findIndex((s) => s.id === pdf.subjectId);
+    let subIndex = subjects.findIndex((s) => s.id === pdf.subjectId);
+    if (subIndex < 0 && pdf.subjectName) {
+      subIndex = subjects.findIndex((s) => s.name.trim().toLowerCase() === pdf.subjectName.trim().toLowerCase());
+    }
+
     if (subIndex >= 0) {
+      const targetSubId = subjects[subIndex].id;
+      pdf.subjectId = targetSubId;
+      const count = pdfs.filter(
+        (p) => (p.subjectId === targetSubId || p.subjectName.trim().toLowerCase() === subjects[subIndex].name.trim().toLowerCase()) && p.isPublished
+      ).length;
       subjects[subIndex].pdfCount = count;
+      writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
+    } else if (pdf.subjectName && pdf.subjectName.trim()) {
+      // Auto-catalog new typed subject in storage
+      const cleanName = pdf.subjectName.trim();
+      const newSub: Subject = {
+        id: pdf.subjectId || `sub-${Date.now()}`,
+        name: cleanName,
+        slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `sub-${Date.now()}`,
+        icon: 'book',
+        iconBgColor: '#EFF6FF',
+        iconColor: '#1677FF',
+        pdfCount: pdf.isPublished ? 1 : 0,
+        description: `Course notes and materials for ${cleanName}.`,
+        topics: [pdf.topic || 'General'],
+        createdAt: new Date().toISOString(),
+      };
+      subjects.push(newSub);
       writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
     }
   },
@@ -228,8 +253,12 @@ export const StorageService = {
     // Update subject count
     if (pdf) {
       const subjects = this.getSubjects();
-      const count = pdfs.filter((p) => p.subjectId === pdf.subjectId && p.isPublished).length;
-      const subIndex = subjects.findIndex((s) => s.id === pdf.subjectId);
+      const count = pdfs.filter(
+        (p) => (p.subjectId === pdf.subjectId || (pdf.subjectName && p.subjectName.trim().toLowerCase() === pdf.subjectName.trim().toLowerCase())) && p.isPublished
+      ).length;
+      const subIndex = subjects.findIndex(
+        (s) => s.id === pdf.subjectId || (pdf.subjectName && s.name.trim().toLowerCase() === pdf.subjectName.trim().toLowerCase())
+      );
       if (subIndex >= 0) {
         subjects[subIndex].pdfCount = count;
         writeToStorage(SUBJECTS_STORAGE_KEY, subjects);

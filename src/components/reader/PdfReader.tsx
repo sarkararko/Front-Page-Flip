@@ -395,7 +395,7 @@ Licensed for Academic and Study Purpose via Front-Page Flip.
                 <span className="font-semibold text-[#102A56]">Front-Page Flip Educational Library</span>
               </div>
               <div className="text-[11px] font-mono">
-                Notes • Solutions • Learn — Semester {pdf.semester || 'University Edition'}
+                Notes • Solutions • Learn — {pdf.semester ? (pdf.semester.toLowerCase().includes('semester') ? pdf.semester : `Semester ${pdf.semester}`) : 'University Edition'}
               </div>
             </div>
           </div>
