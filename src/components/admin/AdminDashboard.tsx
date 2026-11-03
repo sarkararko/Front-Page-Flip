@@ -73,6 +73,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [pdfRawFile, setPdfRawFile] = useState<File | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isSubmittingPdf, setIsSubmittingPdf] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [uploadStage, setUploadStage] = useState<'idle' | 'uploading' | 'processing' | 'done'>('idle');
+  const [uploadErrorDetails, setUploadErrorDetails] = useState<string | null>(null);
   const [pdfThumbnailUrl, setPdfThumbnailUrl] = useState<string | null>(null);
   const [pdfThumbnailPreview, setPdfThumbnailPreview] = useState<string | null>(null);
   const [pdfThumbnailFile, setPdfThumbnailFile] = useState<File | null>(null);
@@ -206,6 +209,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleOpenPdfModal = (pdf?: PdfResource) => {
     setPdfSubjectWarning(null);
     setPdfRawFile(null);
+    setUploadProgress(0);
+    setUploadStage('idle');
+    setUploadErrorDetails(null);
     if (pdf) {
       setEditingPdf(pdf);
       setPdfSubjectId(pdf.subjectName || pdf.subjectId || '');
@@ -267,17 +273,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setPdfThumbnailName(file.name);
     setRemoveThumbnail(false);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setPdfThumbnailPreview(dataUrl);
-      setPdfThumbnailUrl(dataUrl);
-      showToast('success', `Thumbnail "${file.name}" loaded.`);
-    };
-    reader.onerror = () => {
-      showToast('error', 'Failed to read thumbnail image file.');
-    };
-    reader.readAsDataURL(file);
+    // Instant zero-copy preview via ObjectURL
+    const previewUrl = URL.createObjectURL(file);
+    setPdfThumbnailPreview(previewUrl);
+    setPdfThumbnailUrl(previewUrl);
+    showToast('success', `Thumbnail "${file.name}" loaded.`);
   };
 
   const handleRemoveThumbnail = () => {
@@ -299,11 +299,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
 
     if (file.size > 25 * 1024 * 1024) {
-      showToast('error', 'File size exceeds 25 MB limit.');
+      showToast('error', 'File size exceeds maximum 25 MB limit.');
       return;
     }
 
-    setIsUploadingFile(true);
+    // Direct streaming: Store genuine File object without heavy Base64 conversion
     setPdfRawFile(file);
     const formattedSize =
       file.size >= 1024 * 1024
@@ -312,18 +312,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     setPdfFileSize(formattedSize);
     setPdfFileName(file.name);
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPdfFileData(reader.result as string);
-      setIsUploadingFile(false);
-      showToast('success', `PDF file "${file.name}" loaded and ready to publish.`);
-    };
-    reader.onerror = () => {
-      setIsUploadingFile(false);
-      showToast('error', 'Failed to read uploaded PDF binary.');
-    };
-    reader.readAsDataURL(file);
+    setPdfFileData(null);
+    setIsUploadingFile(false);
+    setUploadErrorDetails(null);
+    showToast('success', `PDF file "${file.name}" selected (${formattedSize}). Ready to publish.`);
   };
 
   const handleSavePdf = async (e: React.FormEvent) => {
@@ -365,6 +357,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       : (pdfThumbnailUrl || (editingPdf ? editingPdf.thumbnailUrl : undefined));
 
     setIsSubmittingPdf(true);
+    setUploadErrorDetails(null);
+    setUploadStage('uploading');
+    setUploadProgress(0);
+
     try {
       if (editingPdf) {
         await ApiService.updatePdf({
@@ -417,14 +413,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
         formData.append('downloadAllowed', String(pdfDownloadAllowed));
 
-        await ApiService.uploadPdf(formData);
+        await ApiService.uploadPdfWithProgress(formData, (percent, stage) => {
+          setUploadProgress(percent);
+          setUploadStage(stage);
+        });
+
+        setUploadStage('done');
+        setUploadProgress(100);
         showToast('success', `PDF notes "${finalTitle}" uploaded and published to cloud storage & database!`);
       }
       setIsPdfModalOpen(false);
       onRefreshData();
       loadStudentStats();
     } catch (err: any) {
-      showToast('error', err?.message || 'Failed to save PDF resource.');
+      const errorMsg = err?.message || 'Failed to save PDF resource. Please retry.';
+      setUploadErrorDetails(errorMsg);
+      setUploadStage('idle');
+      showToast('error', errorMsg);
     } finally {
       setIsSubmittingPdf(false);
     }
@@ -1478,12 +1483,97 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 />
               </div>
 
+              {/* Live Upload Progress Indicator */}
+              {isSubmittingPdf && (
+                <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-[#102A56]">
+                    <span className="flex items-center gap-1.5">
+                      {uploadStage === 'done' ? (
+                        <Check className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <RefreshCw className="w-3.5 h-3.5 text-[#1677FF] animate-spin" />
+                      )}
+                      <span>
+                        {uploadStage === 'uploading'
+                          ? `Uploading PDF (${uploadProgress}%)`
+                          : uploadStage === 'processing'
+                          ? 'Saving to Cloud Storage & Database...'
+                          : 'Published!'}
+                      </span>
+                    </span>
+                    <span className="font-mono text-[11px] text-[#1677FF]">
+                      {uploadStage === 'uploading'
+                        ? `${uploadProgress}%`
+                        : uploadStage === 'processing'
+                        ? 'Processing'
+                        : '100%'}
+                    </span>
+                  </div>
+
+                  {/* Animated Progress Bar */}
+                  <div className="w-full h-2 bg-blue-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ease-out rounded-full ${
+                        uploadStage === 'done'
+                          ? 'bg-emerald-500'
+                          : uploadStage === 'processing'
+                          ? 'bg-gradient-to-r from-[#1677FF] to-[#0DB7A5] animate-pulse'
+                          : 'bg-[#1677FF]'
+                      }`}
+                      style={{
+                        width:
+                          uploadStage === 'processing' || uploadStage === 'done'
+                            ? '100%'
+                            : `${Math.max(5, uploadProgress)}%`,
+                      }}
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-slate-500">
+                    {uploadStage === 'uploading'
+                      ? 'Streaming PDF file directly to cloud storage...'
+                      : uploadStage === 'processing'
+                      ? 'Storing PDF in Cloudinary CDN & indexing metadata in Aiven MySQL...'
+                      : 'Document verified and published.'}
+                  </p>
+                </div>
+              )}
+
+              {/* Detailed Error Banner with Retry */}
+              {uploadErrorDetails && !isSubmittingPdf && (
+                <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 space-y-1.5">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-bold">Upload Failed</p>
+                      <p className="text-[11px] text-red-700 mt-0.5">{uploadErrorDetails}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-red-100 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setUploadErrorDetails(null)}
+                      className="text-slate-500 hover:text-slate-700 font-medium px-2 py-0.5 rounded cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSavePdf}
+                      className="font-bold text-red-700 hover:text-red-900 underline hover:no-underline cursor-pointer"
+                    >
+                      Retry Upload
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsPdfModalOpen(false)}
                   disabled={isSubmittingPdf}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold cursor-pointer hover:bg-slate-50 transition-colors"
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold cursor-pointer hover:bg-slate-50 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -1495,7 +1585,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {isSubmittingPdf ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Uploading &amp; Publishing...</span>
+                      <span>
+                        {uploadStage === 'uploading'
+                          ? `Uploading (${uploadProgress}%)...`
+                          : uploadStage === 'processing'
+                          ? 'Saving to Cloud & DB...'
+                          : 'Finishing...'}
+                      </span>
                     </>
                   ) : (
                     <span>{editingPdf ? 'Save Changes' : 'Upload & Publish PDF'}</span>

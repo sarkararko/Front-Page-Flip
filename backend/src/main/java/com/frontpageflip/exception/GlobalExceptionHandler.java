@@ -1,5 +1,7 @@
 package com.frontpageflip.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -17,6 +19,8 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     public static class ErrorDetails {
         private Instant timestamp;
@@ -95,7 +99,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDetails> handleGeneralException(Exception ex) {
-        ErrorDetails err = new ErrorDetails(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal Server Error", "An unexpected error occurred. Please contact support.");
+        logger.error("Unhandled exception caught in GlobalExceptionHandler: {}", ex.getMessage(), ex);
+        String msg = ex.getMessage();
+        if (msg == null || msg.isBlank()) {
+            msg = "An unexpected server error occurred (" + ex.getClass().getSimpleName() + "). Please try again.";
+        }
+        ErrorDetails err = new ErrorDetails(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal Server Error", msg);
         return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

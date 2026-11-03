@@ -38,11 +38,12 @@ public class CloudinaryService {
     @PostConstruct
     public void init() {
         if (isConfigured()) {
-            Map<String, String> config = new HashMap<>();
+            Map<String, Object> config = new HashMap<>();
             config.put("cloud_name", cloudName.trim());
             config.put("api_key", apiKey.trim());
             config.put("api_secret", apiSecret.trim());
-            config.put("secure", "true");
+            config.put("secure", true);
+            config.put("timeout", 90000); // 90 seconds timeout for large PDFs
             this.cloudinary = new Cloudinary(config);
             logger.info("Cloudinary PDF service initialized successfully. cloud_name='{}', folder='{}', api_key=[CONFIGURED]",
                     cloudName.trim(), folder != null ? folder.trim() : "front-page-flip/pdfs");
@@ -88,18 +89,24 @@ public class CloudinaryService {
                 ? originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_")
                 : "document.pdf";
 
-        try {
+        try (InputStream is = file.getInputStream()) {
             logger.info("Uploading PDF '{}' ({} bytes) to Cloudinary folder '{}' as raw resource...",
                     cleanFilename, file.getSize(), folder);
 
-            Map<String, Object> params = ObjectUtils.asMap(
-                    "resource_type", "raw",
-                    "folder", folder != null && !folder.isBlank() ? folder.trim() : "front-page-flip/pdfs",
-                    "use_filename", true,
-                    "unique_filename", true
-            );
+            Map<String, Object> params = new HashMap<>();
+            params.put("resource_type", "raw");
+            params.put("folder", folder != null && !folder.isBlank() ? folder.trim() : "front-page-flip/pdfs");
+            params.put("use_filename", true);
+            params.put("unique_filename", true);
 
-            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
+            Map<?, ?> uploadResult;
+            if (file.getSize() > 5 * 1024 * 1024) {
+                // Stream via chunked upload for files exceeding 5MB to avoid memory pressure and timeouts
+                params.put("chunk_size", 6 * 1024 * 1024);
+                uploadResult = cloudinary.uploader().uploadLarge(is, params);
+            } else {
+                uploadResult = cloudinary.uploader().upload(is, params);
+            }
 
             String publicId = (String) uploadResult.get("public_id");
             String secureUrl = (String) uploadResult.get("secure_url");
@@ -118,7 +125,7 @@ public class CloudinaryService {
             throw new BadRequestException("Could not read uploaded PDF file stream: " + e.getMessage());
         } catch (Exception e) {
             logger.error("Cloudinary upload failed for PDF '{}': {}", cleanFilename, e.getMessage());
-            throw new RuntimeException("Cloudinary upload failed: " + e.getMessage(), e);
+            throw new RuntimeException("Cloud storage upload failed: " + e.getMessage(), e);
         }
     }
 
@@ -178,7 +185,7 @@ public class CloudinaryService {
                 ? folder.trim() + "/thumbnails"
                 : "front-page-flip/thumbnails";
 
-        try {
+        try (InputStream is = file.getInputStream()) {
             logger.info("Uploading thumbnail image '{}' ({} bytes) to Cloudinary folder '{}'...",
                     file.getOriginalFilename(), file.getSize(), thumbnailFolder);
 
@@ -189,7 +196,7 @@ public class CloudinaryService {
                     "unique_filename", true
             );
 
-            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(is, params);
 
             String publicId = (String) uploadResult.get("public_id");
             String secureUrl = (String) uploadResult.get("secure_url");

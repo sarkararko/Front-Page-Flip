@@ -822,7 +822,10 @@ export const ApiService = {
     return StorageService.getSessionToken();
   },
 
-  async uploadPdf(formData: FormData): Promise<PdfResource> {
+  async uploadPdfWithProgress(
+    formData: FormData,
+    onProgress?: (percent: number, stage: 'uploading' | 'processing' | 'done') => void
+  ): Promise<PdfResource> {
     const current = StorageService.getCurrentUser();
     if (!current || current.role !== 'admin') {
       throw new Error('403 Forbidden: Only the authorized administrator can upload and publish educational PDFs.');
@@ -830,6 +833,7 @@ export const ApiService = {
 
     // Ensure valid backend JWT
     await this.ensureAdminToken();
+    const token = StorageService.getSessionToken();
 
     const title = (formData.get('title') as string) || 'Educational Document';
     const topic = (formData.get('topic') as string) || '';
@@ -839,42 +843,113 @@ export const ApiService = {
     const semester = (formData.get('semester') as string) || 'Semester 1';
     const description = (formData.get('description') as string) || '';
     const pageCount = parseInt((formData.get('pageCount') as string) || '1') || 1;
-    const downloadAllowed = formData.get('downloadAllowed') !== 'false';
 
-    const backendDoc = await apiFetch<any>('/pdfs', {
-      method: 'POST',
-      body: formData,
+    const apiBase = getApiBaseUrl();
+    const uploadUrl = `${apiBase}/pdfs`;
+
+    return new Promise<PdfResource>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', uploadUrl, true);
+      xhr.timeout = 180000; // 3 minutes timeout
+
+      xhr.setRequestHeader('Accept', 'application/json');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      // Real upload progress tracking
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && event.total > 0) {
+          const percent = Math.min(99, Math.round((event.loaded / event.total) * 100));
+          onProgress?.(percent, 'uploading');
+        }
+      };
+
+      xhr.upload.onload = () => {
+        onProgress?.(100, 'processing');
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const backendDoc = JSON.parse(xhr.responseText);
+            if (!backendDoc || !backendDoc.id) {
+              reject(new Error('Upload failed: Server did not return a valid document record.'));
+              return;
+            }
+            onProgress?.(100, 'done');
+
+            const backendBase = getBackendBaseUrl();
+            const downloadUrl = backendBase
+              ? `${backendBase}/api/v1/pdfs/${backendDoc.id}/download`
+              : `/api/v1/pdfs/${backendDoc.id}/download`;
+            const finalFileUrl = backendDoc.cloudinarySecureUrl || downloadUrl;
+
+            const mapped: PdfResource = {
+              id: backendDoc.id,
+              title: backendDoc.title || title,
+              subjectId: backendDoc.subjectId || subjectId,
+              subjectName: backendDoc.subjectName || subjectName,
+              topic: backendDoc.topic || topic,
+              course: backendDoc.course || course,
+              semester: backendDoc.semester || semester,
+              description: backendDoc.description || description,
+              pageCount: backendDoc.pageCount || pageCount,
+              fileSize: backendDoc.fileSize || '1.0 MB',
+              fileName: backendDoc.fileName || `${backendDoc.title || title}.pdf`,
+              fileUrl: finalFileUrl,
+              thumbnailUrl: backendDoc.thumbnailUrl || undefined,
+              uploadDate: backendDoc.createdAt
+                ? backendDoc.createdAt.split('T')[0]
+                : new Date().toISOString().split('T')[0],
+              isPublished: backendDoc.published !== false,
+              downloadAllowed: backendDoc.downloadAllowed !== false,
+            };
+
+            StorageService.savePdf(mapped);
+            resolve(mapped);
+          } catch {
+            reject(new Error('Invalid response received from server.'));
+          }
+        } else {
+          let errorMessage = `Upload failed (Status ${xhr.status})`;
+          try {
+            const errData = JSON.parse(xhr.responseText);
+            if (errData?.message) {
+              errorMessage = errData.message;
+            } else if (errData?.error) {
+              errorMessage = errData.error;
+            }
+          } catch {
+            // response was not JSON
+          }
+
+          if (xhr.status === 413) {
+            errorMessage = 'Uploaded PDF file exceeds maximum size limit of 25MB.';
+          } else if (xhr.status === 401 || xhr.status === 403) {
+            errorMessage = 'Admin session expired or unauthorized. Please re-authenticate as administrator.';
+          } else if (xhr.status === 504 || xhr.status === 502) {
+            errorMessage = 'Cloud gateway timeout. The cloud service took too long to process the file.';
+          }
+
+          reject(new Error(errorMessage));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network error: Unable to reach the server. Please check your internet connection and retry.'));
+      };
+
+      xhr.ontimeout = () => {
+        reject(new Error('Upload request timed out after 3 minutes. Please verify your internet connection or reduce file size and retry.'));
+      };
+
+      xhr.send(formData);
     });
+  },
 
-    if (!backendDoc || !backendDoc.id) {
-      throw new Error('Upload failed: Cloud storage upload or MySQL database saving failed. Please verify the file and retry.');
-    }
-
-    const backendBase = getBackendBaseUrl();
-    const downloadUrl = backendBase ? `${backendBase}/api/v1/pdfs/${backendDoc.id}/download` : `/api/v1/pdfs/${backendDoc.id}/download`;
-    const finalFileUrl = backendDoc.cloudinarySecureUrl || downloadUrl;
-
-    const mapped: PdfResource = {
-      id: backendDoc.id,
-      title: backendDoc.title || title,
-      subjectId: backendDoc.subjectId || subjectId,
-      subjectName: backendDoc.subjectName || subjectName,
-      topic: backendDoc.topic || topic,
-      course: backendDoc.course || course,
-      semester: backendDoc.semester || semester,
-      description: backendDoc.description || description,
-      pageCount: backendDoc.pageCount || pageCount,
-      fileSize: backendDoc.fileSize || '1.0 MB',
-      fileName: backendDoc.fileName || `${backendDoc.title || title}.pdf`,
-      fileUrl: finalFileUrl,
-      thumbnailUrl: backendDoc.thumbnailUrl || undefined,
-      uploadDate: backendDoc.createdAt ? backendDoc.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
-      isPublished: backendDoc.published !== false,
-      downloadAllowed: backendDoc.downloadAllowed !== false,
-    };
-
-    StorageService.savePdf(mapped);
-    return mapped;
+  async uploadPdf(formData: FormData): Promise<PdfResource> {
+    return this.uploadPdfWithProgress(formData);
   },
 
   async createPdf(pdf: Omit<PdfResource, 'id' | 'uploadDate'>): Promise<PdfResource> {
