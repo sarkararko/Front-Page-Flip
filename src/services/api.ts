@@ -560,7 +560,7 @@ export const ApiService = {
     try {
       const backendSubjects = await apiFetch<any[]>('/subjects');
       if (backendSubjects && Array.isArray(backendSubjects)) {
-        return backendSubjects.map((s) => ({
+        const mapped: Subject[] = backendSubjects.map((s) => ({
           id: s.id,
           name: s.name,
           slug: s.slug,
@@ -572,9 +572,11 @@ export const ApiService = {
           topics: s.topics || [],
           createdAt: s.createdAt,
         }));
+        StorageService.setSubjects(mapped);
+        return mapped;
       }
     } catch {
-      // fallback to client storage
+      // fallback to client storage only if network unavailable
     }
     return StorageService.getSubjects();
   },
@@ -585,49 +587,40 @@ export const ApiService = {
       throw new Error('403 Forbidden: Only the authorized creator and administrator can create subjects.');
     }
 
-    try {
-      const created = await apiFetch<any>('/subjects', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: subject.name,
-          slug: subject.slug,
-          description: subject.description,
-          icon: subject.icon,
-          iconColor: subject.iconColor,
-          iconBgColor: subject.iconBgColor,
-          topics: subject.topics,
-        }),
-      });
-      if (created && created.id) {
-        const mapped: Subject = {
-          id: created.id,
-          name: created.name,
-          slug: created.slug,
-          description: created.description,
-          icon: created.icon,
-          iconColor: created.iconColor,
-          iconBgColor: created.iconBgColor,
-          pdfCount: created.pdfCount || 0,
-          topics: created.topics || [],
-          createdAt: created.createdAt || new Date().toISOString(),
-        };
-        StorageService.saveSubject(mapped);
-        return mapped;
-      }
-    } catch (e: any) {
-      if (e?.message && !e.message.includes('Failed to fetch')) {
-        throw e;
-      }
+    // Ensure valid backend JWT
+    await this.ensureAdminToken();
+
+    const created = await apiFetch<any>('/subjects', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: subject.name,
+        slug: subject.slug,
+        description: subject.description,
+        icon: subject.icon,
+        iconColor: subject.iconColor,
+        iconBgColor: subject.iconBgColor,
+        topics: subject.topics,
+      }),
+    });
+
+    if (created && created.id) {
+      const mapped: Subject = {
+        id: created.id,
+        name: created.name,
+        slug: created.slug,
+        description: created.description,
+        icon: created.icon,
+        iconColor: created.iconColor,
+        iconBgColor: created.iconBgColor,
+        pdfCount: created.pdfCount || 0,
+        topics: created.topics || [],
+        createdAt: created.createdAt || new Date().toISOString(),
+      };
+      StorageService.saveSubject(mapped);
+      return mapped;
     }
 
-    const newSubject: Subject = {
-      ...subject,
-      id: `sub-${Date.now()}`,
-      pdfCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-    StorageService.saveSubject(newSubject);
-    return newSubject;
+    throw new Error('Failed to create subject in database.');
   },
 
   async updateSubject(subject: Subject): Promise<Subject> {
@@ -635,6 +628,10 @@ export const ApiService = {
     if (!current || current.role !== 'admin' || current.email.toLowerCase() !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
       throw new Error('403 Forbidden: Only the authorized creator and administrator can edit subjects.');
     }
+
+    // Ensure valid backend JWT
+    await this.ensureAdminToken();
+
     const cleanPayload = {
       name: subject.name.trim(),
       slug: subject.slug || subject.name.toLowerCase().replace(/\s+/g, '-'),
@@ -643,33 +640,29 @@ export const ApiService = {
       iconColor: subject.iconColor || '#1677FF',
       iconBgColor: subject.iconBgColor || '#EFF6FF',
     };
-    try {
-      const res = await apiFetch<any>(`/subjects/${subject.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(cleanPayload),
-      });
-      if (res && res.id) {
-        const mapped: Subject = {
-          ...subject,
-          id: res.id,
-          name: res.name,
-          slug: res.slug,
-          description: res.description,
-          icon: res.icon,
-          iconColor: res.iconColor,
-          iconBgColor: res.iconBgColor,
-          pdfCount: typeof res.pdfCount === 'number' ? res.pdfCount : subject.pdfCount,
-        };
-        StorageService.saveSubject(mapped);
-        return mapped;
-      }
-    } catch (e: any) {
-      if (e?.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
-        throw e;
-      }
+
+    const res = await apiFetch<any>(`/subjects/${subject.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(cleanPayload),
+    });
+
+    if (res && res.id) {
+      const mapped: Subject = {
+        ...subject,
+        id: res.id,
+        name: res.name,
+        slug: res.slug,
+        description: res.description,
+        icon: res.icon,
+        iconColor: res.iconColor,
+        iconBgColor: res.iconBgColor,
+        pdfCount: typeof res.pdfCount === 'number' ? res.pdfCount : subject.pdfCount,
+      };
+      StorageService.saveSubject(mapped);
+      return mapped;
     }
-    StorageService.saveSubject(subject);
-    return subject;
+
+    throw new Error('Failed to update subject in database.');
   },
 
   async deleteSubject(id: string): Promise<void> {
@@ -677,15 +670,13 @@ export const ApiService = {
     if (!current || current.role !== 'admin' || current.email.toLowerCase() !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
       throw new Error('403 Forbidden: Only the authorized creator and administrator can delete subjects.');
     }
-    try {
-      await apiFetch<any>(`/subjects/${id}`, {
-        method: 'DELETE',
-      });
-    } catch (e: any) {
-      if (e?.message && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
-        throw e;
-      }
-    }
+
+    // Ensure valid backend JWT
+    await this.ensureAdminToken();
+
+    await apiFetch<any>(`/subjects/${id}`, {
+      method: 'DELETE',
+    });
     StorageService.deleteSubject(id);
   },
 

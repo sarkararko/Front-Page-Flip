@@ -214,7 +214,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setUploadErrorDetails(null);
     if (pdf) {
       setEditingPdf(pdf);
-      setPdfSubjectId(pdf.subjectName || pdf.subjectId || '');
+      setPdfSubjectId(pdf.subjectId || '');
       setPdfSemester(pdf.semester || 'Semester 1');
       setPdfDescription(pdf.description || '');
       setPdfPageCount(pdf.pageCount || 1);
@@ -230,7 +230,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setRemoveThumbnail(false);
     } else {
       setEditingPdf(null);
-      setPdfSubjectId(subjects[0]?.name || '');
+      setPdfSubjectId(subjects.length > 0 ? subjects[0].id : '');
       setPdfSemester('Semester 1');
       setPdfDescription('');
       setPdfPageCount(1);
@@ -1398,37 +1398,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 )}
               </div>
 
-              {/* 3. Subject (Required - Editable text input with existing subject suggestions) */}
+              {/* 3. Subject (Required - Dropdown populated from Aiven MySQL) */}
               <div>
                 <label className="block font-bold text-[#102A56] mb-1">
                   Subject <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  required
-                  list="admin-pdf-subject-suggestions"
-                  value={pdfSubjectId}
-                  onChange={(e) => {
-                    setPdfSubjectId(e.target.value);
-                    setPdfSubjectWarning(null);
-                  }}
-                  placeholder="Type subject name (e.g. Mathematics, Operating Systems, Chemistry)..."
-                  className={`w-full p-2.5 bg-[#F8FAFC] border rounded-xl font-medium outline-hidden transition-colors ${
-                    pdfSubjectWarning
-                      ? 'border-red-400 focus:border-red-500 bg-red-50/30'
-                      : 'border-[#CBD5E1] focus:border-[#1677FF]'
-                  }`}
-                />
-                <datalist id="admin-pdf-subject-suggestions">
-                  {subjects.map((sub) => (
-                    <option key={sub.id} value={sub.name}>
-                      {sub.name}
-                    </option>
-                  ))}
-                </datalist>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Type or pick from existing subjects created by an administrator.
-                </p>
+                {subjects.length === 0 ? (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                    <p className="font-bold flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>No subjects available yet</span>
+                    </p>
+                    <p className="mt-1 text-[11px] text-amber-700">
+                      Please use the <strong>"Add Subject"</strong> button to create an academic subject before uploading PDFs.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <select
+                      required
+                      value={pdfSubjectId}
+                      onChange={(e) => {
+                        setPdfSubjectId(e.target.value);
+                        setPdfSubjectWarning(null);
+                      }}
+                      className={`w-full p-2.5 bg-[#F8FAFC] border rounded-xl font-medium outline-hidden transition-colors cursor-pointer text-xs ${
+                        pdfSubjectWarning
+                          ? 'border-red-400 focus:border-red-500 bg-red-50/30'
+                          : 'border-[#CBD5E1] focus:border-[#1677FF]'
+                      }`}
+                    >
+                      <option value="" disabled>
+                        -- Select an Admin-Created Subject --
+                      </option>
+                      {subjects.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      PDF will be associated with this subject in the student library.
+                    </p>
+                  </div>
+                )}
                 {pdfSubjectWarning && (
                   <p className="text-red-600 text-[11px] font-semibold mt-1 flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5" />

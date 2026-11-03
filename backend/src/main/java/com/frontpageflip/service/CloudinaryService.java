@@ -105,7 +105,7 @@ public class CloudinaryService {
                 params.put("chunk_size", 6 * 1024 * 1024);
                 uploadResult = cloudinary.uploader().uploadLarge(is, params);
             } else {
-                uploadResult = cloudinary.uploader().upload(is, params);
+                uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
             }
 
             String publicId = (String) uploadResult.get("public_id");
@@ -185,7 +185,7 @@ public class CloudinaryService {
                 ? folder.trim() + "/thumbnails"
                 : "front-page-flip/thumbnails";
 
-        try (InputStream is = file.getInputStream()) {
+        try {
             logger.info("Uploading thumbnail image '{}' ({} bytes) to Cloudinary folder '{}'...",
                     file.getOriginalFilename(), file.getSize(), thumbnailFolder);
 
@@ -196,7 +196,7 @@ public class CloudinaryService {
                     "unique_filename", true
             );
 
-            Map<?, ?> uploadResult = cloudinary.uploader().upload(is, params);
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
 
             String publicId = (String) uploadResult.get("public_id");
             String secureUrl = (String) uploadResult.get("secure_url");

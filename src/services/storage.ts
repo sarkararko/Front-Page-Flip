@@ -176,6 +176,10 @@ export const StorageService = {
     return mapped;
   },
 
+  setSubjects(subjects: Subject[]): void {
+    writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
+  },
+
   saveSubject(subject: Subject): void {
     const subjects = this.getSubjects();
     const existingIndex = subjects.findIndex((s) => s.id === subject.id);

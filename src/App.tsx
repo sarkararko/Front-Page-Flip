@@ -44,7 +44,7 @@ export default function App() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   // Load initial data and sync authoritative user profile from backend MySQL
-  const loadData = () => {
+  const loadData = async () => {
     const user = ApiService.getCurrentUser();
     if (user) {
       setCurrentUser(user);
@@ -59,8 +59,16 @@ export default function App() {
       });
     }
 
-    ApiService.getSubjects().then((subs) => setSubjects(subs));
-    ApiService.getPdfs().then((pList) => setPdfs(pList));
+    try {
+      const [subs, pList] = await Promise.all([
+        ApiService.getSubjects(),
+        ApiService.getPdfs(),
+      ]);
+      setSubjects(subs);
+      setPdfs(pList);
+    } catch {
+      // Fallback
+    }
 
     if (user) {
       setUserFavorites(ApiService.getUserFavorites(user.id));
