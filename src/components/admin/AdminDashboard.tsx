@@ -345,13 +345,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         (s.slug && s.slug.toLowerCase() === cleanSubjectInput.toLowerCase())
     );
 
+    if (!matchedSub) {
+      const warningText = `Subject "${cleanSubjectInput}" not found. Please select an existing subject or create it first via "Add Subject".`;
+      setPdfSubjectWarning(warningText);
+      showToast('error', warningText);
+      return;
+    }
+
     // Derived values: title defaults to PDF filename without .pdf extension
     const baseTitle = pdfFileName
       ? pdfFileName.replace(/\.pdf$/i, '').replace(/[_-]/g, ' ').trim()
       : '';
-    const finalTitle = editingPdf?.title || baseTitle || cleanSubjectInput || 'Educational PDF Document';
-    const subId = matchedSub ? matchedSub.id : '';
-    const subName = matchedSub ? matchedSub.name : cleanSubjectInput;
+    const finalTitle = editingPdf?.title || baseTitle || matchedSub.name || 'Educational PDF Document';
+    const subId = matchedSub.id;
+    const subName = matchedSub.name;
     const effectiveThumbnailUrl = removeThumbnail
       ? undefined
       : (pdfThumbnailUrl || (editingPdf ? editingPdf.thumbnailUrl : undefined));
@@ -1420,7 +1427,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   ))}
                 </datalist>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Type any academic subject name or pick from existing published subjects.
+                  Type or pick from existing subjects created by an administrator.
                 </p>
                 {pdfSubjectWarning && (
                   <p className="text-red-600 text-[11px] font-semibold mt-1 flex items-center gap-1">

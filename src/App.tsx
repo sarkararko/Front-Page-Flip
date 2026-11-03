@@ -328,6 +328,7 @@ export default function App() {
             onToggleReadLater={handleToggleReadLater}
             onViewPdf={handleViewPdf}
             onGoToLibrary={() => handleNavigate('my-library')}
+            onGoToAdmin={() => handleNavigate('admin')}
             onRefreshData={loadData}
           />
         )}
@@ -363,6 +364,7 @@ export default function App() {
             userFavorites={userFavorites}
             currentUser={currentUser}
             onRefreshData={loadData}
+            onGoToAdmin={() => handleNavigate('admin')}
             onToggleFavorite={handleToggleFavorite}
             onSelectSubject={handleSelectSubject}
           />

@@ -221,26 +221,6 @@ export const StorageService = {
       const targetSub = subjects[subIndex];
       pdf.subjectId = targetSub.id;
       pdf.subjectName = targetSub.name;
-    } else if (pdf.subjectName && pdf.subjectName.trim()) {
-      // Auto-catalog new typed subject in storage
-      const cleanName = pdf.subjectName.trim();
-      const newSubId = pdf.subjectId && pdf.subjectId.startsWith('sub-') ? pdf.subjectId : `sub-${Date.now()}`;
-      const newSub: Subject = {
-        id: newSubId,
-        name: cleanName,
-        slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `sub-${Date.now()}`,
-        icon: 'book',
-        iconBgColor: '#EFF6FF',
-        iconColor: '#1677FF',
-        pdfCount: pdf.isPublished ? 1 : 0,
-        description: `Course notes and materials for ${cleanName}.`,
-        topics: [pdf.topic || 'General'],
-        createdAt: new Date().toISOString(),
-      };
-      pdf.subjectId = newSub.id;
-      pdf.subjectName = newSub.name;
-      subjects.push(newSub);
-      writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
     }
 
     // 2. Persist PDF resource

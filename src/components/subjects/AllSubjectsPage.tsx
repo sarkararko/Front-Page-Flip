@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, BookOpen, AlertTriangle, X, Check } from 'lucide-react';
+import { Search, BookOpen, AlertTriangle, X, Check, Plus } from 'lucide-react';
 import { Subject, User } from '../../types';
 import { SubjectCard } from '../common/SubjectCard';
 import { ApiService } from '../../services/api';
@@ -14,6 +14,7 @@ interface AllSubjectsPageProps {
   userFavorites: string[];
   currentUser?: User | null;
   onRefreshData?: () => void;
+  onGoToAdmin?: () => void;
   onToggleFavorite: (subjectId: string, e: React.MouseEvent) => void;
   onSelectSubject: (subject: Subject) => void;
 }
@@ -23,6 +24,7 @@ export const AllSubjectsPage: React.FC<AllSubjectsPageProps> = ({
   userFavorites,
   currentUser,
   onRefreshData,
+  onGoToAdmin,
   onToggleFavorite,
   onSelectSubject,
 }) => {
@@ -184,10 +186,22 @@ export const AllSubjectsPage: React.FC<AllSubjectsPageProps> = ({
           <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-[#1677FF]/15 to-[#0DB7A5]/20 text-[#1677FF] border border-[#1677FF]/25 flex items-center justify-center mb-4 shadow-xs">
             <BookOpen className="w-8 h-8 text-[#1677FF]" />
           </div>
-          <h3 className="text-xl font-bold text-[#102A56]">No study materials available yet</h3>
+          <h3 className="text-xl font-bold text-[#102A56]">No subjects available yet</h3>
           <p className="text-sm text-[#64748B] mt-2 font-medium">
-            New content will appear here once published by the admin.
+            {isAdmin
+              ? 'No subjects have been created yet. Create the first academic subject to begin organizing educational resources.'
+              : 'Educational subjects will appear here once created and published by an administrator.'}
           </p>
+          {isAdmin && onGoToAdmin && (
+            <button
+              type="button"
+              onClick={onGoToAdmin}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#1677FF] hover:bg-[#0E63DC] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create First Subject</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-[#E2E8F0] p-12 text-center max-w-md mx-auto shadow-xs">

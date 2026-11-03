@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, BookOpen, FileText, AlertTriangle, X, Check, ShieldAlert } from 'lucide-react';
+import { ArrowRight, BookOpen, FileText, AlertTriangle, X, Check, ShieldAlert, Plus } from 'lucide-react';
 import { Subject, PdfResource, User } from '../../types';
 import { HeroSearch } from './HeroSearch';
 import { SubjectCard } from '../common/SubjectCard';
@@ -30,6 +30,7 @@ interface HomePageProps {
   onToggleReadLater: (pdfId: string, e: React.MouseEvent) => void;
   onViewPdf: (pdf: PdfResource) => void;
   onGoToLibrary: () => void;
+  onGoToAdmin?: () => void;
   onRefreshData?: () => void;
 }
 
@@ -50,6 +51,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onToggleReadLater,
   onViewPdf,
   onGoToLibrary,
+  onGoToAdmin,
   onRefreshData,
 }) => {
   const isAdmin = currentUser?.role === 'admin';
@@ -229,11 +231,23 @@ export const HomePage: React.FC<HomePageProps> = ({
               <BookOpen className="w-7 h-7 text-[#1677FF]" />
             </div>
             <h3 className="text-base sm:text-lg font-bold text-[#102A56]">
-              No study materials available yet
+              No subjects available yet
             </h3>
             <p className="text-xs sm:text-sm text-[#64748B] mt-1.5 max-w-md mx-auto font-medium">
-              New content will appear here once published by the admin.
+              {isAdmin
+                ? 'No subjects have been created yet. Create the first academic subject to begin organizing educational resources.'
+                : 'Educational subjects will appear here once created and published by an administrator.'}
             </p>
+            {isAdmin && onGoToAdmin && (
+              <button
+                type="button"
+                onClick={onGoToAdmin}
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#1677FF] hover:bg-[#0E63DC] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create First Subject</span>
+              </button>
+            )}
           </div>
         )}
       </section>

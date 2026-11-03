@@ -126,25 +126,7 @@ public class PdfDocumentService {
             }
         }
         if (subject == null) {
-            String nameToUse = (subjectName != null && !subjectName.isBlank())
-                    ? subjectName.trim()
-                    : ((subjectId != null && !subjectId.isBlank()) ? subjectId.trim() : "General Studies");
-            String slug = nameToUse.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
-            if (slug.isBlank()) {
-                slug = "subject-" + UUID.randomUUID().toString().substring(0, 6);
-            }
-            if (subjectRepository.existsBySlug(slug)) {
-                slug = slug + "-" + UUID.randomUUID().toString().substring(0, 4);
-            }
-            Subject newSubject = new Subject();
-            newSubject.setId("sub_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-            newSubject.setName(nameToUse);
-            newSubject.setSlug(slug);
-            newSubject.setDescription("Study materials and lecture notes for " + nameToUse);
-            newSubject.setIcon("book");
-            newSubject.setIconColor("#1677FF");
-            newSubject.setIconBgColor("#EFF6FF");
-            subject = subjectRepository.save(newSubject);
+            throw new BadRequestException("The specified subject does not exist. Educational PDFs must be associated with an existing subject created by an administrator.");
         }
         return subject;
     }
