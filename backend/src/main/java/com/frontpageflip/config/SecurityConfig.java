@@ -79,9 +79,9 @@ public class SecurityConfig {
                                 "/actuator/info"
                         ).permitAll()
 
-                        // Subject & PDF read access for authenticated users
-                        .requestMatchers(HttpMethod.GET, "/api/subjects/**", "/api/v1/subjects/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/pdfs/**", "/api/v1/pdfs/**").authenticated()
+                        // Subject & PDF read access - publicly visible for published notes across devices & browsers
+                        .requestMatchers(HttpMethod.GET, "/api/subjects/**", "/api/v1/subjects/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/pdfs/**", "/api/v1/pdfs/**").permitAll()
 
                         // Strict Admin-Only Content Management operations
                         .requestMatchers(HttpMethod.POST, "/api/subjects/**", "/api/v1/subjects/**").hasRole("ADMIN")
@@ -100,6 +100,12 @@ public class SecurityConfig {
 
                         // Any other request must be authenticated
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(exceptions -> exceptions
+                        .defaultAuthenticationEntryPointFor(
+                                new org.springframework.security.web.authentication.HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED),
+                                new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/**")
+                        )
                 )
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(auth -> auth

@@ -72,6 +72,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [pdfFileName, setPdfFileName] = useState('');
   const [pdfRawFile, setPdfRawFile] = useState<File | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [isSubmittingPdf, setIsSubmittingPdf] = useState(false);
   const [pdfThumbnailUrl, setPdfThumbnailUrl] = useState<string | null>(null);
   const [pdfThumbnailPreview, setPdfThumbnailPreview] = useState<string | null>(null);
   const [pdfThumbnailFile, setPdfThumbnailFile] = useState<File | null>(null);
@@ -363,6 +364,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       ? undefined
       : (pdfThumbnailUrl || (editingPdf ? editingPdf.thumbnailUrl : undefined));
 
+    setIsSubmittingPdf(true);
     try {
       if (editingPdf) {
         await ApiService.updatePdf({
@@ -416,13 +418,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         formData.append('downloadAllowed', String(pdfDownloadAllowed));
 
         await ApiService.uploadPdf(formData);
-        showToast('success', `New PDF notes "${finalTitle}" uploaded and published!`);
+        showToast('success', `PDF notes "${finalTitle}" uploaded and published to cloud storage & database!`);
       }
       setIsPdfModalOpen(false);
       onRefreshData();
       loadStudentStats();
     } catch (err: any) {
       showToast('error', err?.message || 'Failed to save PDF resource.');
+    } finally {
+      setIsSubmittingPdf(false);
     }
   };
 
@@ -1478,15 +1482,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsPdfModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold"
+                  disabled={isSubmittingPdf}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#1677FF] hover:bg-[#0E63DC] text-white rounded-xl font-bold"
+                  disabled={isSubmittingPdf || isUploadingFile}
+                  className="px-5 py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white rounded-xl font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer shadow-xs"
                 >
-                  {editingPdf ? 'Save Changes' : 'Upload & Publish PDF'}
+                  {isSubmittingPdf ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Uploading &amp; Publishing...</span>
+                    </>
+                  ) : (
+                    <span>{editingPdf ? 'Save Changes' : 'Upload & Publish PDF'}</span>
+                  )}
                 </button>
               </div>
             </form>
