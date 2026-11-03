@@ -110,6 +110,11 @@ public class SubjectService {
                 .or(() -> subjectRepository.findBySlug(cleanId.toLowerCase()))
                 .or(() -> subjectRepository.findByNameIgnoreCase(cleanId))
                 .orElseThrow(() -> new ResourceNotFoundException("Subject not found with ID or slug: " + id));
+
+        long pdfCount = pdfRepository.countBySubjectIdAndPublishedTrue(subject.getId());
+        if (pdfCount > 0) {
+            throw new BadRequestException("Cannot delete subject '" + subject.getName() + "' because it contains " + pdfCount + " published PDF(s). Please delete or reassign all study materials first.");
+        }
         subjectRepository.delete(subject);
     }
 

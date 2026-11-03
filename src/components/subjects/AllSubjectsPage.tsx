@@ -335,18 +335,18 @@ export const AllSubjectsPage: React.FC<AllSubjectsPageProps> = ({
             </p>
 
             {deletingSubject.pdfCount > 0 ? (
-              <div className="mt-3.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-left">
+              <div className="mt-3.5 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-left">
                 <p className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <span>Contains {deletingSubject.pdfCount} Educational PDF(s)</span>
+                  <span>Contains {deletingSubject.pdfCount} Published PDF(s)</span>
                 </p>
-                <p className="text-[11px] text-amber-800 mt-1 leading-relaxed font-normal">
-                  Deleting this subject will permanently remove this academic category from the student library.
+                <p className="text-[11px] text-amber-800 mt-1.5 leading-relaxed font-normal">
+                  To protect your library and prevent accidental orphan documents, subjects with active PDFs cannot be deleted. Please reassign or delete the associated PDFs in Admin Library Management before removing this subject.
                 </p>
               </div>
             ) : (
               <p className="text-[11px] text-slate-500 mt-2 font-medium">
-                This subject currently has no PDFs associated with it.
+                This subject currently has no PDFs associated with it and can be safely removed. This action cannot be undone.
               </p>
             )}
 
@@ -357,16 +357,18 @@ export const AllSubjectsPage: React.FC<AllSubjectsPageProps> = ({
                 disabled={isDeletingSubject}
                 className="px-4 py-2 border border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition-colors"
               >
-                Cancel
+                {deletingSubject.pdfCount > 0 ? 'Close' : 'Cancel'}
               </button>
-              <button
-                type="button"
-                onClick={handleExecuteDeleteSubject}
-                disabled={isDeletingSubject}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50"
-              >
-                {isDeletingSubject ? 'Deleting...' : 'Delete Subject'}
-              </button>
+              {deletingSubject.pdfCount === 0 && (
+                <button
+                  type="button"
+                  onClick={handleExecuteDeleteSubject}
+                  disabled={isDeletingSubject}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50"
+                >
+                  {isDeletingSubject ? 'Deleting...' : 'Delete Subject'}
+                </button>
+              )}
             </div>
           </div>
         </div>

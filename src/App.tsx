@@ -328,6 +328,7 @@ export default function App() {
             onToggleReadLater={handleToggleReadLater}
             onViewPdf={handleViewPdf}
             onGoToLibrary={() => handleNavigate('my-library')}
+            onRefreshData={loadData}
           />
         )}
 
