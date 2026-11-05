@@ -5,14 +5,16 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import path from 'path';
 
-// Load environment variables from .env
-dotenv.config();
+// Load environment variables from .env with override enabled
+dotenv.config({ override: true });
+
 
 const app = express();
 app.use(express.json());
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_TwQeY3q2SKyMCY';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'OkRPe0KeGpoqRbDM1rRB5mLk';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_live_TwReofbXIfEGXk';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'ipp92NPh5OIoyX9bWr9qmRlF';
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 
 // Initialize Razorpay SDK instance
 let razorpay: Razorpay | null = null;
@@ -22,7 +24,7 @@ try {
       key_id: RAZORPAY_KEY_ID,
       key_secret: RAZORPAY_KEY_SECRET,
     });
-    console.log('[Razorpay] Initialized successfully with Key ID:', RAZORPAY_KEY_ID);
+    console.log('[Razorpay] Initialized successfully with Live Key ID:', RAZORPAY_KEY_ID);
   } else {
     console.warn('[Razorpay] Missing RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET');
   }
@@ -33,11 +35,11 @@ try {
 // ============================================================================
 // STEP 1: BACKEND - Create Order
 // ============================================================================
-// Endpoint: POST /api/create-order (and /api/v1/golden/create-order)
+// Endpoint: POST /api/create-order, /api/v1/create-order, /api/v1/golden/create-order
 // Call Razorpay API: POST https://api.razorpay.com/v1/orders
 // Request: { amount (paise), currency, receipt }
-// Return: { order_id, amount, currency }
-// Minimum amount: 100 paise
+// Return: { order_id, amount, currency, key_id }
+// Strictly enforces ₹149 (14900 paise) server-side
 // ============================================================================
 const handleCreateOrder = async (req: Request, res: Response) => {
   try {
@@ -47,25 +49,18 @@ const handleCreateOrder = async (req: Request, res: Response) => {
       });
     }
 
-    const rawAmount = req.body.amount !== undefined ? req.body.amount : 14900; // Default: 14900 paise (₹149)
-    const amount = Number(rawAmount);
-    const currency = req.body.currency || 'INR';
-    const receipt = req.body.receipt || `order_rcptid_${Date.now()}`;
-
-    // Validate amount >= 100 paise
-    if (isNaN(amount) || amount < 100) {
-      return res.status(400).json({
-        error: 'Invalid order amount. Amount must be at least 100 paise (₹1.00).',
-      });
-    }
+    // Strictly enforce ₹149 (14900 paise) for Lifetime Golden
+    const amount = 14900;
+    const currency = 'INR';
+    const receipt = req.body.receipt || `gld_rcpt_${Date.now()}`;
 
     const options = {
-      amount: Math.round(amount),
-      currency: currency.toUpperCase(),
-      receipt: String(receipt),
+      amount,
+      currency,
+      receipt: String(receipt).slice(0, 40),
       notes: {
-        package: req.body.plan || 'Lifetime Golden',
-        userId: req.body.userId || 'anonymous',
+        package: 'Lifetime Golden',
+        userId: req.body.userId || 'student',
       },
     };
 
@@ -94,6 +89,7 @@ const handleCreateOrder = async (req: Request, res: Response) => {
 app.post('/api/create-order', handleCreateOrder);
 app.post('/api/v1/create-order', handleCreateOrder);
 app.post('/api/v1/golden/create-order', handleCreateOrder);
+
 
 // ============================================================================
 // STEP 3: BACKEND - Verify Signature
@@ -169,10 +165,40 @@ const handleVerifyPayment = (req: Request, res: Response) => {
 
 app.post('/api/verify-payment', handleVerifyPayment);
 app.post('/api/v1/verify-payment', handleVerifyPayment);
+app.post('/api/golden/verify-payment', handleVerifyPayment);
 app.post('/api/v1/golden/verify-payment', handleVerifyPayment);
 
+// Razorpay Webhook Handler
+const handleWebhook = (req: Request, res: Response) => {
+  try {
+    const signature = req.headers['x-razorpay-signature'] as string;
+    if (RAZORPAY_WEBHOOK_SECRET && signature) {
+      const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+      const expected = crypto
+        .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+        .update(rawBody)
+        .digest('hex');
+      const sigBuffer = Buffer.from(signature, 'utf-8');
+      const expBuffer = Buffer.from(expected, 'utf-8');
+      if (sigBuffer.length !== expBuffer.length || !crypto.timingSafeEqual(sigBuffer, expBuffer)) {
+        return res.status(400).json({ error: 'Webhook signature mismatch' });
+      }
+    }
+    console.log('[Razorpay Webhook] Received webhook event:', req.body?.event);
+    return res.status(200).json({ status: 'ok', received: true });
+  } catch (err: any) {
+    console.error('[Razorpay Webhook Error]:', err);
+    return res.status(500).json({ error: err?.message || 'Webhook handling error' });
+  }
+};
+
+app.post('/api/golden/webhook', handleWebhook);
+app.post('/api/v1/golden/webhook', handleWebhook);
+app.post('/api/webhook/razorpay', handleWebhook);
+app.post('/api/v1/webhook/razorpay', handleWebhook);
+
 // Golden status config
-app.get(['/api/golden/status', '/api/v1/golden/status'], (req, res) => {
+app.get(['/api/golden/status', '/api/v1/golden/status', '/api/status', '/api/v1/status'], (req, res) => {
   res.json({
     available: true,
     price: 149,
@@ -183,6 +209,7 @@ app.get(['/api/golden/status', '/api/v1/golden/status'], (req, res) => {
     description: 'Unlock PDF downloads for all study materials, permanently.',
   });
 });
+
 
 // Proxy other backend requests to Render Spring Boot backend
 const RENDER_BACKEND = 'https://frontpageflip-backend.onrender.com';

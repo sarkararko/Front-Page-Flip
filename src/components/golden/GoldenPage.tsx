@@ -71,6 +71,14 @@ export const GoldenPage: React.FC<GoldenPageProps> = ({
       return;
     }
 
+    if (!currentUser) {
+      setErrorMessage('Please sign in to your student account first so your Lifetime Golden membership can be activated.');
+      setTimeout(() => {
+        onNavigate('profile');
+      }, 1500);
+      return;
+    }
+
     setLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -91,7 +99,7 @@ export const GoldenPage: React.FC<GoldenPageProps> = ({
       const keyId =
         orderData.key_id ||
         (import.meta as any).env?.VITE_RAZORPAY_KEY_ID ||
-        'rzp_test_TwQeY3q2SKyMCY';
+        'rzp_live_TwReofbXIfEGXk';
 
       // 3. Open Razorpay Standard Checkout Modal
       const options = {
@@ -327,8 +335,8 @@ export const GoldenPage: React.FC<GoldenPageProps> = ({
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>Secured by Razorpay Standard 256-bit SSL Checkout</span>
               </span>
-              <span className="font-mono text-slate-400">
-                Key: rzp_test_TwQ...MCY
+              <span className="font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Live Secured
               </span>
             </div>
 

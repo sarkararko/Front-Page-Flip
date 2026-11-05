@@ -18,6 +18,9 @@ public interface UserRepository extends JpaRepository<User, String> {
     long countByRole(Role role);
     List<User> findByRoleOrderByCreatedAtDesc(Role role);
 
+    Optional<User> findByPaymentOrderId(String paymentOrderId);
+
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.frontpageflip.model.Role.STUDENT AND u.accountStatus = 'ACTIVE' AND u.lastActiveAt >= :activeThreshold")
     long countActiveStudents(@Param("activeThreshold") Instant activeThreshold);
 }
+

@@ -1128,38 +1128,28 @@ export const ApiService = {
   },
 
   async createRazorpayOrder(amount: number = 14900): Promise<{ order_id: string; amount: number; currency: string; key_id?: string }> {
-    try {
-      const res = await fetch('/api/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, currency: 'INR', plan: 'Lifetime Golden' }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && (data.order_id || data.id)) {
-          return {
-            order_id: data.order_id || data.id,
-            amount: data.amount,
-            currency: data.currency,
-            key_id: data.key_id,
-          };
-        }
-      }
-    } catch {
-      // Fallback to apiFetch
+    const user = StorageService.getCurrentUser();
+    const token = StorageService.getSessionToken();
+    if (!token && !user) {
+      throw new Error('Please sign in to your student account first to purchase Lifetime Golden membership.');
     }
 
-    const res2 = await apiFetch<any>('/create-order', {
+    const res = await apiFetch<any>('/create-order', {
       method: 'POST',
-      body: JSON.stringify({ amount, currency: 'INR', plan: 'Lifetime Golden' }),
+      body: JSON.stringify({
+        amount: 14900,
+        currency: 'INR',
+        plan: 'Lifetime Golden',
+        userId: user?.id,
+      }),
     });
 
-    if (res2 && (res2.order_id || res2.id)) {
+    if (res && (res.order_id || res.id)) {
       return {
-        order_id: res2.order_id || res2.id,
-        amount: res2.amount,
-        currency: res2.currency,
-        key_id: res2.key_id,
+        order_id: res.order_id || res.id,
+        amount: res.amount || 14900,
+        currency: res.currency || 'INR',
+        key_id: res.key_id,
       };
     }
 
@@ -1172,32 +1162,21 @@ export const ApiService = {
     razorpay_signature: string;
     userId?: string;
   }): Promise<{ success: boolean; verified: boolean; message: string }> {
-    let result: any = null;
-    try {
-      const res = await fetch('/api/verify-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.success) {
-        result = data;
-      } else if (res.status === 400) {
-        throw new Error(data?.error || 'Payment signature mismatch. Verification failed.');
-      }
-    } catch (e: any) {
-      if (e?.message?.includes('mismatch')) throw e;
+    const current = StorageService.getCurrentUser();
+    const token = StorageService.getSessionToken();
+    if (!token && !current) {
+      throw new Error('Please sign in to verify your payment.');
     }
 
-    if (!result) {
-      result = await apiFetch<any>('/verify-payment', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
+    const result = await apiFetch<any>('/verify-payment', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...payload,
+        userId: payload.userId || current?.id,
+      }),
+    });
 
     if (result && result.success) {
-      const current = StorageService.getCurrentUser();
       if (current) {
         current.isGolden = true;
         current.goldenPlan = 'Lifetime Golden';
@@ -1208,7 +1187,7 @@ export const ApiService = {
       return result;
     }
 
-    throw new Error('Payment verification failed. Invalid signature.');
+    throw new Error(result?.error || 'Payment verification failed. Invalid signature.');
   },
 
   // --- USER FAVORITES (MySQL & Local Sync) ---

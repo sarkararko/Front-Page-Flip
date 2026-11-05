@@ -75,18 +75,33 @@ public class SecurityConfig {
                                 "/api/v1/presence/heartbeat",
                                 "/api/presence/logout",
                                 "/api/v1/presence/logout",
+                                "/actuator/health",
+                                "/actuator/info",
+                                // Public Golden membership pricing info
+                                "/api/golden/status",
+                                "/api/v1/golden/status",
+                                // Razorpay Webhook (authenticated cryptographically via X-Razorpay-Signature header)
+                                "/api/golden/webhook",
+                                "/api/v1/golden/webhook",
+                                "/api/webhook/razorpay",
+                                "/api/v1/webhook/razorpay"
+                        ).permitAll()
+
+                        // Protected Golden order & payment verification (must be authenticated student or admin)
+                        .requestMatchers(
                                 "/api/create-order",
                                 "/api/v1/create-order",
+                                "/api/golden/create-order",
+                                "/api/v1/golden/create-order",
                                 "/api/verify-payment",
                                 "/api/v1/verify-payment",
-                                "/api/golden/**",
-                                "/api/v1/golden/**",
-                                "/actuator/health",
-                                "/actuator/info"
-                        ).permitAll()
+                                "/api/golden/verify-payment",
+                                "/api/v1/golden/verify-payment"
+                        ).authenticated()
 
                         // Protected Golden download endpoints (must be authenticated)
                         .requestMatchers(HttpMethod.GET, "/api/pdfs/*/download", "/api/v1/pdfs/*/download").authenticated()
+
 
                         // Subject & PDF read access - publicly visible for published notes across devices & browsers
                         .requestMatchers(HttpMethod.GET, "/api/subjects/**", "/api/v1/subjects/**").permitAll()
