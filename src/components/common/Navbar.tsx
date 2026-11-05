@@ -14,6 +14,7 @@ import {
   Clock,
   Star,
   Users,
+  Crown,
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { User } from '../../types';
@@ -298,6 +299,33 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span>Profile &amp; Settings</span>
                       </button>
 
+                      {/* Golden Section - directly below Profile & Settings */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onNavigate('golden');
+                          setDropdownOpen(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left bg-gradient-to-r from-amber-500/15 via-yellow-500/15 to-amber-500/5 hover:from-amber-500/25 hover:via-yellow-500/25 border-t border-amber-200/80 flex items-center justify-between group transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center shadow-xs">
+                            <Crown className="w-3.5 h-3.5 text-slate-900 fill-slate-900 group-hover:scale-110 transition-transform" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-amber-950 text-xs tracking-wide flex items-center gap-1.5">
+                              Golden
+                            </span>
+                            <span className="text-[10px] text-amber-800 font-medium block">
+                              Lifetime Download Access
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-xs">
+                          {currentUser.isGolden ? 'Active' : '₹149'}
+                        </span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => {
@@ -357,6 +385,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="block w-full text-left px-3 py-2 rounded-md text-sm font-semibold text-[#102A56] hover:bg-slate-50"
             >
               My Library
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate('golden');
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-3 py-2.5 rounded-md text-sm font-bold bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/80 text-amber-950 flex items-center justify-between"
+            >
+              <span className="flex items-center gap-2">
+                <Crown className="w-4 h-4 text-amber-600 fill-amber-400" />
+                <span>Golden</span>
+              </span>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950">
+                {currentUser?.isGolden ? 'Active' : '₹149 Lifetime'}
+              </span>
             </button>
             <div className="px-3 py-2 flex items-center justify-between text-xs font-medium bg-[#E6F8F5] border border-[#A5E7DC] rounded-lg">
               <span className="flex items-center gap-1.5 text-[#00A88F]">

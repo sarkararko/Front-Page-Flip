@@ -10,6 +10,9 @@ export interface User {
   createdAt: string;
   provider?: 'email' | 'google' | 'github';
   passwordHash?: string;
+  isGolden?: boolean;
+  goldenPlan?: string;
+  paymentStatus?: string;
 }
 
 export interface Subject {
@@ -42,6 +45,7 @@ export interface PdfResource {
   thumbnailStyle?: 'dark-notebook' | 'lecture-sheet' | 'green-board' | 'circuit-dark' | 'standard';
   thumbnailUrl?: string; // Optional custom thumbnail image (JPG, PNG, WEBP)
   cloudinarySecureUrl?: string;
+  viewUrl?: string;
   fileUrl?: string;
   downloadUrl?: string;
   fileName?: string;

@@ -449,7 +449,7 @@ public class AuthService {
     }
 
     public static UserDto toUserDto(User user) {
-        return new UserDto(
+        UserDto dto = new UserDto(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
@@ -457,5 +457,13 @@ public class AuthService {
                 user.getAccountStatus(),
                 user.isEmailVerified()
         );
+        dto.setProvider(user.getProvider());
+        dto.setGolden(user.isGolden());
+        dto.setGoldenPlan(user.getGoldenPlan());
+        dto.setPaymentStatus(user.getPaymentStatus());
+        if (user.getCreatedAt() != null) {
+            dto.setCreatedAt(user.getCreatedAt().toString());
+        }
+        return dto;
     }
 }

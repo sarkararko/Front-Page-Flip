@@ -76,6 +76,9 @@ app:
     folder: ${CLOUDINARY_FOLDER:front-page-flip/pdfs}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:https://frontpageflip.vercel.app,https://*.vercel.app,https://frontpageflip-backend.onrender.com,http://localhost:3000,http://localhost:5173}
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:rzp_test_TwQeY3q2SKyMCY}
+    key-secret: ${RAZORPAY_KEY_SECRET:OkRPe0KeGpoqRbDM1rRB5mLk}
 
 management:
   endpoints:

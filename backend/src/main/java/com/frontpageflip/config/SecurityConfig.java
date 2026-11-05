@@ -75,9 +75,18 @@ public class SecurityConfig {
                                 "/api/v1/presence/heartbeat",
                                 "/api/presence/logout",
                                 "/api/v1/presence/logout",
+                                "/api/create-order",
+                                "/api/v1/create-order",
+                                "/api/verify-payment",
+                                "/api/v1/verify-payment",
+                                "/api/golden/**",
+                                "/api/v1/golden/**",
                                 "/actuator/health",
                                 "/actuator/info"
                         ).permitAll()
+
+                        // Protected Golden download endpoints (must be authenticated)
+                        .requestMatchers(HttpMethod.GET, "/api/pdfs/*/download", "/api/v1/pdfs/*/download").authenticated()
 
                         // Subject & PDF read access - publicly visible for published notes across devices & browsers
                         .requestMatchers(HttpMethod.GET, "/api/subjects/**", "/api/v1/subjects/**").permitAll()

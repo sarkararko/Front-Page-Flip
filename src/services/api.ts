@@ -526,6 +526,9 @@ export const ApiService = {
           createdAt: local?.createdAt || new Date().toISOString(),
           provider: local?.provider || 'email',
           avatar: res.name ? res.name.slice(0, 2).toUpperCase() : (local?.avatar || 'AD'),
+          isGolden: res.golden ?? res.isGolden ?? false,
+          goldenPlan: res.goldenPlan || undefined,
+          paymentStatus: res.paymentStatus || undefined,
         };
         StorageService.updateUser(updated);
         StorageService.setCurrentUser(updated);
@@ -688,8 +691,9 @@ export const ApiService = {
       if (backendPdfs && Array.isArray(backendPdfs)) {
         const backendBase = getBackendBaseUrl();
         let list: PdfResource[] = backendPdfs.map((p) => {
+          const viewUrl = backendBase ? `${backendBase}/api/v1/pdfs/${p.id}/view` : `/api/v1/pdfs/${p.id}/view`;
           const downloadUrl = backendBase ? `${backendBase}/api/v1/pdfs/${p.id}/download` : `/api/v1/pdfs/${p.id}/download`;
-          const finalFileUrl = p.cloudinarySecureUrl || downloadUrl;
+          const finalFileUrl = p.cloudinarySecureUrl || viewUrl;
           return {
             id: p.id,
             title: p.title,
@@ -703,6 +707,9 @@ export const ApiService = {
             fileSize: p.fileSize || '1.0 MB',
             fileName: p.fileName || `${p.title}.pdf`,
             fileUrl: finalFileUrl,
+            viewUrl,
+            downloadUrl,
+            cloudinarySecureUrl: p.cloudinarySecureUrl || undefined,
             thumbnailUrl: p.thumbnailUrl || undefined,
             uploadDate: p.createdAt ? p.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
             isPublished: p.published !== false,
@@ -1061,6 +1068,147 @@ export const ApiService = {
     } catch {
       // Local fallback
     }
+  },
+
+  // --- PDF VIEWING & SECURE DOWNLOAD ---
+  getPdfViewUrl(pdfId: string): string {
+    const backendBase = getBackendBaseUrl();
+    return backendBase ? `${backendBase}/api/v1/pdfs/${pdfId}/view` : `/api/v1/pdfs/${pdfId}/view`;
+  },
+
+  async downloadPdfFile(pdfId: string, fileName?: string): Promise<void> {
+    const backendBase = getBackendBaseUrl();
+    const url = backendBase ? `${backendBase}/api/v1/pdfs/${pdfId}/download` : `/api/v1/pdfs/${pdfId}/download`;
+    const token = StorageService.getSessionToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new Error('Downloading study materials requires Lifetime Golden membership. Please upgrade to Golden.');
+      }
+      if (response.status === 401) {
+        throw new Error('Please sign in to download study materials.');
+      }
+      throw new Error(`Download failed with status ${response.status}`);
+    }
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName || `document_${pdfId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  },
+
+  // --- GOLDEN MEMBERSHIP API ---
+  async getGoldenStatus(): Promise<{ isGolden: boolean; goldenPlan: string; price: number; currency: string; message: string }> {
+    try {
+      const res = await apiFetch<any>('/golden/status');
+      if (res) return res;
+    } catch {
+      // Offline fallback
+    }
+    const user = StorageService.getCurrentUser();
+    return {
+      isGolden: user?.isGolden || false,
+      goldenPlan: user?.goldenPlan || 'Lifetime Golden',
+      price: 149,
+      currency: 'INR',
+      message: 'Unlock PDF downloads for all study materials, permanently.',
+    };
+  },
+
+  async createGoldenOrder(amount: number = 14900): Promise<{ order_id: string; amount: number; currency: string; key_id?: string }> {
+    return this.createRazorpayOrder(amount);
+  },
+
+  async createRazorpayOrder(amount: number = 14900): Promise<{ order_id: string; amount: number; currency: string; key_id?: string }> {
+    try {
+      const res = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, currency: 'INR', plan: 'Lifetime Golden' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (data.order_id || data.id)) {
+          return {
+            order_id: data.order_id || data.id,
+            amount: data.amount,
+            currency: data.currency,
+            key_id: data.key_id,
+          };
+        }
+      }
+    } catch {
+      // Fallback to apiFetch
+    }
+
+    const res2 = await apiFetch<any>('/create-order', {
+      method: 'POST',
+      body: JSON.stringify({ amount, currency: 'INR', plan: 'Lifetime Golden' }),
+    });
+
+    if (res2 && (res2.order_id || res2.id)) {
+      return {
+        order_id: res2.order_id || res2.id,
+        amount: res2.amount,
+        currency: res2.currency,
+        key_id: res2.key_id,
+      };
+    }
+
+    throw new Error('Could not initiate Razorpay checkout order. Please try again.');
+  },
+
+  async verifyRazorpayPayment(payload: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+    userId?: string;
+  }): Promise<{ success: boolean; verified: boolean; message: string }> {
+    let result: any = null;
+    try {
+      const res = await fetch('/api/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        result = data;
+      } else if (res.status === 400) {
+        throw new Error(data?.error || 'Payment signature mismatch. Verification failed.');
+      }
+    } catch (e: any) {
+      if (e?.message?.includes('mismatch')) throw e;
+    }
+
+    if (!result) {
+      result = await apiFetch<any>('/verify-payment', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    }
+
+    if (result && result.success) {
+      const current = StorageService.getCurrentUser();
+      if (current) {
+        current.isGolden = true;
+        current.goldenPlan = 'Lifetime Golden';
+        current.paymentStatus = 'COMPLETED';
+        StorageService.updateUser(current);
+        StorageService.setCurrentUser(current);
+      }
+      return result;
+    }
+
+    throw new Error('Payment verification failed. Invalid signature.');
   },
 
   // --- USER FAVORITES (MySQL & Local Sync) ---

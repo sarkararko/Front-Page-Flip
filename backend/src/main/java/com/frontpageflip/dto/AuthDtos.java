@@ -167,6 +167,9 @@ public class AuthDtos {
         private String avatar;
         private String provider;
         private String createdAt;
+        private boolean isGolden;
+        private String goldenPlan;
+        private String paymentStatus;
 
         public UserDto() {}
 
@@ -205,6 +208,15 @@ public class AuthDtos {
 
         public String getCreatedAt() { return createdAt; }
         public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+
+        public boolean isGolden() { return isGolden; }
+        public void setGolden(boolean isGolden) { this.isGolden = isGolden; }
+
+        public String getGoldenPlan() { return goldenPlan; }
+        public void setGoldenPlan(String goldenPlan) { this.goldenPlan = goldenPlan; }
+
+        public String getPaymentStatus() { return paymentStatus; }
+        public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
     }
 
     public static class AuthResponse {

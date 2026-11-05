@@ -14,6 +14,7 @@ import { PdfReader } from './components/reader/PdfReader';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ProfilePage } from './components/profile/ProfilePage';
 import { AboutPage } from './components/about/AboutPage';
+import { GoldenPage } from './components/golden/GoldenPage';
 import { QuickSearchModal } from './components/common/QuickSearchModal';
 import { Logo } from './components/common/Logo';
 
@@ -21,6 +22,7 @@ export default function App() {
   // Authentication session
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [goldenRedirectNotice, setGoldenRedirectNotice] = useState<string | undefined>(undefined);
 
   // App data loaded from backend / StorageService
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -290,9 +292,15 @@ export default function App() {
       <PdfReader
         pdf={activePdf}
         userId={currentUser.id}
+        currentUser={currentUser}
         onBack={() => setActivePdf(null)}
         isReadLater={readLaterIds.includes(activePdf.id)}
         onToggleReadLater={() => handleToggleReadLater(activePdf.id)}
+        onGoToGolden={(pdfTitle) => {
+          setActivePdf(null);
+          setGoldenRedirectNotice(pdfTitle);
+          setActiveTab('golden');
+        }}
       />
     );
   }
@@ -436,6 +444,18 @@ export default function App() {
             onUpdateUser={(updated) => setCurrentUser(updated)}
           />
         )}
+
+        {activeTab === 'golden' && (
+          <GoldenPage
+            currentUser={currentUser}
+            fromPdfTitle={goldenRedirectNotice}
+            onNavigate={handleNavigate}
+            onBack={() => handleNavigate('home')}
+            onPaymentSuccess={() => {
+              loadData();
+            }}
+          />
+        )}
       </main>
 
       {/* Global Quick Search Modal */}
@@ -477,6 +497,9 @@ export default function App() {
             </button>
             <button type="button" onClick={() => handleNavigate('about')} className="hover:text-[#1677FF]">
               About
+            </button>
+            <button type="button" onClick={() => handleNavigate('golden')} className="hover:text-amber-600 font-bold text-amber-700">
+              Golden
             </button>
             {currentUser?.role === 'admin' && (
               <button

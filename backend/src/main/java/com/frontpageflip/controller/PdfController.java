@@ -2,6 +2,11 @@ package com.frontpageflip.controller;
 
 import com.frontpageflip.dto.PdfDtos.*;
 import com.frontpageflip.service.PdfDocumentService;
+import com.frontpageflip.exception.ForbiddenException;
+import com.frontpageflip.exception.UnauthorizedException;
+import com.frontpageflip.model.Role;
+import com.frontpageflip.model.User;
+import com.frontpageflip.repository.UserRepository;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -18,9 +23,11 @@ import java.util.List;
 public class PdfController {
 
     private final PdfDocumentService pdfService;
+    private final UserRepository userRepository;
 
-    public PdfController(PdfDocumentService pdfService) {
+    public PdfController(PdfDocumentService pdfService, UserRepository userRepository) {
         this.pdfService = pdfService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -72,11 +79,20 @@ public class PdfController {
     }
 
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> downloadPdf(@PathVariable String id) {
-        PdfResponse info = pdfService.getPdfById(id, null);
-        if (!info.isDownloadAllowed()) {
-            return ResponseEntity.status(403).build();
+    public ResponseEntity<Resource> downloadPdf(@PathVariable String id, Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new UnauthorizedException("Authentication required to download study materials.");
         }
+        String currentUserId = (String) authentication.getPrincipal();
+        User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new UnauthorizedException("User not found."));
+
+        boolean isAuthorized = user.getRole() == Role.ADMIN || user.isGolden();
+        if (!isAuthorized) {
+            throw new ForbiddenException("Downloading study materials requires Lifetime Golden membership. Please upgrade to Golden.");
+        }
+
+        PdfResponse info = pdfService.getPdfById(id, currentUserId);
         Resource file = pdfService.getPdfFileResource(id);
 
         return ResponseEntity.ok()

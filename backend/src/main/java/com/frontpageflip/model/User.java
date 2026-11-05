@@ -42,6 +42,21 @@ public class User {
     @Column(name = "last_password_reset_sent_at")
     private Instant lastPasswordResetSentAt;
 
+    @Column(name = "is_golden", nullable = false)
+    private boolean isGolden = false;
+
+    @Column(name = "golden_plan", length = 64)
+    private String goldenPlan;
+
+    @Column(name = "payment_status", nullable = false, length = 32)
+    private String paymentStatus = "NONE";
+
+    @Column(name = "payment_order_id", length = 128)
+    private String paymentOrderId;
+
+    @Column(name = "golden_purchased_at")
+    private Instant goldenPurchasedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -94,6 +109,21 @@ public class User {
 
     public Instant getLastPasswordResetSentAt() { return lastPasswordResetSentAt; }
     public void setLastPasswordResetSentAt(Instant lastPasswordResetSentAt) { this.lastPasswordResetSentAt = lastPasswordResetSentAt; }
+
+    public boolean isGolden() { return isGolden; }
+    public void setGolden(boolean isGolden) { this.isGolden = isGolden; }
+
+    public String getGoldenPlan() { return goldenPlan; }
+    public void setGoldenPlan(String goldenPlan) { this.goldenPlan = goldenPlan; }
+
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+
+    public String getPaymentOrderId() { return paymentOrderId; }
+    public void setPaymentOrderId(String paymentOrderId) { this.paymentOrderId = paymentOrderId; }
+
+    public Instant getGoldenPurchasedAt() { return goldenPurchasedAt; }
+    public void setGoldenPurchasedAt(Instant goldenPurchasedAt) { this.goldenPurchasedAt = goldenPurchasedAt; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
