@@ -31,7 +31,7 @@ import java.util.Map;
 @RequestMapping({"/api/v1", "/api"})
 public class GoldenController {
 
-    private static final Logger log = LoggerFactory.getLogger(GoldenController.java);
+    private static final Logger log = LoggerFactory.getLogger(GoldenController.class);
     private static final int GOLDEN_PRICE_PAISE = 14900; // Exactly ₹149 one-time lifetime
 
     private final UserRepository userRepository;

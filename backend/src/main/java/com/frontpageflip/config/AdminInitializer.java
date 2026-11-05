@@ -38,12 +38,15 @@ public class AdminInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        String normalizedEmail = creatorEmail.trim().toLowerCase();
+        String normalizedEmail = (creatorEmail != null && !creatorEmail.isBlank())
+                ? creatorEmail.trim().toLowerCase()
+                : "arkaparna.ds@gmail.com";
+
         Optional<User> existing = userRepository.findByEmailIgnoreCase(normalizedEmail);
 
         if (existing.isEmpty()) {
             User admin = new User();
-            admin.setId("usr_admin_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
+            admin.setId("usr_admin_creator");
             admin.setName("Front-Page Flip Admin");
             admin.setEmail(normalizedEmail);
             admin.setRole(Role.ADMIN);
@@ -52,24 +55,43 @@ public class AdminInitializer implements CommandLineRunner {
             admin.setProvider("email");
 
             if (adminInitialPassword != null && !adminInitialPassword.isBlank()) {
-                admin.setPasswordHash(passwordEncoder.encode(adminInitialPassword));
-                log.info("Initialized system administrator for configured creator account from environment variables.");
+                admin.setPasswordHash(passwordEncoder.encode(adminInitialPassword.trim()));
+                log.info("Initialized system administrator for configured creator account from ADMIN_INITIAL_PASSWORD.");
             } else {
-                log.info("Provisioned administrator record for {}. Password can be established via setup endpoint or ADMIN_INITIAL_PASSWORD.", normalizedEmail);
+                log.info("Provisioned administrator record for {}. Password can be established via ADMIN_INITIAL_PASSWORD or setup.", normalizedEmail);
             }
             userRepository.save(admin);
         } else {
             User admin = existing.get();
-            // Ensure creator retains ADMIN role and is active
+            boolean updated = false;
+
+            // Ensure creator retains active ADMIN role and verified status
             if (admin.getRole() != Role.ADMIN) {
                 admin.setRole(Role.ADMIN);
-                userRepository.save(admin);
+                updated = true;
             }
-            // Update password from environment variable if provided
-            if (adminInitialPassword != null && !adminInitialPassword.isBlank() && admin.getPasswordHash() == null) {
-                admin.setPasswordHash(passwordEncoder.encode(adminInitialPassword));
+            if (!admin.isEmailVerified()) {
+                admin.setEmailVerified(true);
+                updated = true;
+            }
+            if (!"ACTIVE".equalsIgnoreCase(admin.getAccountStatus())) {
+                admin.setAccountStatus("ACTIVE");
+                updated = true;
+            }
+
+            // If ADMIN_INITIAL_PASSWORD is provided in environment variables,
+            // ensure the database password matches this configured environment variable
+            if (adminInitialPassword != null && !adminInitialPassword.isBlank()) {
+                String trimmedPass = adminInitialPassword.trim();
+                if (admin.getPasswordHash() == null || !passwordEncoder.matches(trimmedPass, admin.getPasswordHash())) {
+                    admin.setPasswordHash(passwordEncoder.encode(trimmedPass));
+                    updated = true;
+                    log.info("Synchronized administrator password for {} from ADMIN_INITIAL_PASSWORD environment variable.", normalizedEmail);
+                }
+            }
+
+            if (updated) {
                 userRepository.save(admin);
-                log.info("Updated administrator password for {} from environment variables.", normalizedEmail);
             }
         }
     }

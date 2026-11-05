@@ -212,8 +212,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
       setError(null);
       const res = await ApiService.adminLogin(cleanEmail, adminPassword);
       onSuccess(res.user);
-    } catch {
-      setError('Invalid email or password. Please verify your credentials.');
+    } catch (err: any) {
+      setError(err?.message || 'Invalid email or password. Please verify your credentials.');
     } finally {
       setLoading(false);
     }

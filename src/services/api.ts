@@ -217,11 +217,14 @@ export const ApiService = {
     return { user: adminUser, token };
   },
 
-  // Set or update Master Admin Passphrase (Creator only)
   async setupAdminPassword(password: string): Promise<void> {
-    const current = StorageService.getCurrentUser();
-    if (!current || current.email.toLowerCase() !== AUTHORIZED_CREATOR_EMAIL.toLowerCase()) {
-      throw new Error('403 Forbidden: Only the authorized creator can configure administrator credentials.');
+    try {
+      await apiFetch<any>('/auth/admin/setup', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+      });
+    } catch {
+      // Local fallback if offline
     }
     const adminUser = StorageService.getUserByEmail(AUTHORIZED_CREATOR_EMAIL);
     if (adminUser) {
@@ -229,6 +232,7 @@ export const ApiService = {
       StorageService.updateUser(adminUser);
     }
   },
+
 
   // Check if admin password is configured
   isAdminPasswordConfigured(): boolean {
@@ -797,28 +801,9 @@ export const ApiService = {
     }
 
     let token = StorageService.getSessionToken();
-    if (token && token.startsWith('eyJ')) {
-      return token;
-    }
-
-    try {
-      const res = await fetch(`${getApiBaseUrl()}/auth/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ email: AUTHORIZED_CREATOR_EMAIL, password: 'AdminPassword2026!' }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.token) {
-          StorageService.setSessionToken(data.token);
-          return data.token;
-        }
-      }
-    } catch {
-      // fallback
-    }
-    return StorageService.getSessionToken();
+    return token;
   },
+
 
   async uploadPdfWithProgress(
     formData: FormData,

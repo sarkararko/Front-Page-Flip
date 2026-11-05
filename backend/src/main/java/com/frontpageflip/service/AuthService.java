@@ -19,6 +19,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -38,8 +40,12 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
 
-    @Value("${app.security.creator-email:}")
+    @Value("${app.security.creator-email:arkaparna.ds@gmail.com}")
     private String creatorEmail;
+
+    @Value("${app.security.admin-initial-password:${ADMIN_INITIAL_PASSWORD:}}")
+    private String adminInitialPassword;
+
 
     public AuthService(UserRepository userRepository,
                        VerificationTokenRepository verificationTokenRepository,
@@ -348,18 +354,27 @@ public class AuthService {
         return new GenericResponse(true, "Password has been reset successfully. You can now log in with your new password.");
     }
 
+    public String getNormalizedCreatorEmail() {
+        if (creatorEmail == null || creatorEmail.isBlank()) {
+            return "arkaparna.ds@gmail.com";
+        }
+        return creatorEmail.trim().toLowerCase();
+    }
+
+
     /**
      * Separate Administrator Authentication.
      * Restricted to configured creator account.
      * Does NOT require Brevo email verification or OTP.
-     * Generic error responses prevent disclosure.
+     * Safely verifies BCrypt password and transparently upgrades legacy hashes.
      */
     @Transactional
     public AuthResponse loginAdmin(LoginRequest request) {
         String normalizedEmail = request.getEmail().trim().toLowerCase();
+        String creator = getNormalizedCreatorEmail();
 
         // STRICT SECURITY: Only configured creator email can authenticate as Admin
-        if (!normalizedEmail.equalsIgnoreCase(creatorEmail.trim().toLowerCase())) {
+        if (!normalizedEmail.equalsIgnoreCase(creator)) {
             throw new UnauthorizedException("Invalid email or password.");
         }
 
@@ -373,12 +388,32 @@ public class AuthService {
             throw new UnauthorizedException("Invalid email or password.");
         }
 
-        if (admin.getPasswordHash() == null) {
-            throw new UnauthorizedException("Administrator credentials not yet established.");
+        // If password is not yet established
+        if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank()) {
+            if (adminInitialPassword != null && !adminInitialPassword.isBlank() &&
+                    adminInitialPassword.trim().equals(request.getPassword().trim())) {
+                admin.setPasswordHash(passwordEncoder.encode(request.getPassword().trim()));
+                userRepository.save(admin);
+                log.info("Established administrator password for creator from ADMIN_INITIAL_PASSWORD.");
+            } else {
+                throw new UnauthorizedException("Administrator credentials not yet established. Please configure ADMIN_INITIAL_PASSWORD in Render or complete setup.");
+            }
         }
 
-        if (!passwordEncoder.matches(request.getPassword(), admin.getPasswordHash())) {
-            throw new UnauthorizedException("Invalid email or password.");
+        boolean matches = checkAndUpgradePassword(admin, request.getPassword());
+        if (!matches) {
+            // Also check if entered password directly matches ADMIN_INITIAL_PASSWORD from environment
+            if (adminInitialPassword != null && !adminInitialPassword.isBlank() &&
+                    adminInitialPassword.trim().equals(request.getPassword().trim())) {
+                admin.setPasswordHash(passwordEncoder.encode(request.getPassword().trim()));
+                userRepository.save(admin);
+                matches = true;
+                log.info("Synchronized administrator password with configured ADMIN_INITIAL_PASSWORD.");
+            }
+        }
+
+        if (!matches) {
+            throw new UnauthorizedException("Incorrect administrator passphrase.");
         }
 
         String jwt = jwtService.generateToken(admin);
@@ -387,15 +422,16 @@ public class AuthService {
 
     /**
      * Initial Admin Password Setup for Creator.
+     * Only permitted if administrator password has not been established yet.
      */
     @Transactional
     public AuthResponse setupAdminPassword(SetupAdminPasswordRequest request) {
-        String normalizedCreator = creatorEmail.trim().toLowerCase();
+        String normalizedCreator = getNormalizedCreatorEmail();
 
         User admin = userRepository.findByEmailIgnoreCase(normalizedCreator).orElseGet(() -> {
             User newAdmin = new User();
-            newAdmin.setId("admin_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-            newAdmin.setName("System Administrator");
+            newAdmin.setId("usr_admin_creator");
+            newAdmin.setName("Front-Page Flip Admin");
             newAdmin.setEmail(normalizedCreator);
             newAdmin.setRole(Role.ADMIN);
             newAdmin.setEmailVerified(true);
@@ -403,14 +439,75 @@ public class AuthService {
             return newAdmin;
         });
 
+        if (admin.getPasswordHash() != null && !admin.getPasswordHash().isBlank()) {
+            throw new ForbiddenException("Administrator credentials already established. To update credentials, please use the password reset flow or set ADMIN_INITIAL_PASSWORD in Render.");
+        }
+
         admin.setRole(Role.ADMIN);
-        admin.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        admin.setPasswordHash(passwordEncoder.encode(request.getPassword().trim()));
         admin.setEmailVerified(true);
         User savedAdmin = userRepository.save(admin);
 
         String jwt = jwtService.generateToken(savedAdmin);
         return new AuthResponse(jwt, toUserDto(savedAdmin), "Admin credentials secured successfully.");
     }
+
+    /**
+     * Verify password using standard BCrypt and transparently upgrade legacy formats.
+     */
+    private boolean checkAndUpgradePassword(User user, String rawPassword) {
+        if (user == null || user.getPasswordHash() == null || rawPassword == null) {
+            return false;
+        }
+        String storedHash = user.getPasswordHash().trim();
+        String trimmedRaw = rawPassword.trim();
+
+        // 1. Standard BCrypt verification (handles $2a$, $2b$, $2y$)
+        if (storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$") || storedHash.startsWith("$2y$")) {
+            return passwordEncoder.matches(trimmedRaw, storedHash) || passwordEncoder.matches(rawPassword, storedHash);
+        }
+
+        // 2. Legacy Plain Text match: if previously saved in plain text
+        if (storedHash.equals(rawPassword) || storedHash.equals(trimmedRaw)) {
+            user.setPasswordHash(passwordEncoder.encode(trimmedRaw));
+            userRepository.save(user);
+            log.info("Upgraded administrator password hash from plain text to BCrypt.");
+            return true;
+        }
+
+        // 3. Legacy SHA-256 match: check client-side salt from storage.ts: SHA-256(password + '_fpf_salt_sec_2026')
+        String shaSaltedRaw = computeSha256(rawPassword + "_fpf_salt_sec_2026");
+        String shaSaltedTrimmed = computeSha256(trimmedRaw + "_fpf_salt_sec_2026");
+        String shaPlainRaw = computeSha256(rawPassword);
+        String shaPlainTrimmed = computeSha256(trimmedRaw);
+
+        if (storedHash.equalsIgnoreCase(shaSaltedRaw) || storedHash.equalsIgnoreCase(shaSaltedTrimmed) ||
+                storedHash.equalsIgnoreCase(shaPlainRaw) || storedHash.equalsIgnoreCase(shaPlainTrimmed)) {
+            user.setPasswordHash(passwordEncoder.encode(trimmedRaw));
+            userRepository.save(user);
+            log.info("Upgraded administrator password hash from legacy SHA-256 to BCrypt.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private String computeSha256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
 
     public UserDto getCurrentUser(String userId) {
         User user = userRepository.findById(userId)

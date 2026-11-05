@@ -1,2 +1,3 @@
-com\frontpageflip\SubjectPdfServiceTest.class
-com\frontpageflip\AuthServiceTest.class
+com/frontpageflip/SubjectPdfServiceTest.class
+com/frontpageflip/SecurityConfigTest.class
+com/frontpageflip/AuthServiceTest.class
