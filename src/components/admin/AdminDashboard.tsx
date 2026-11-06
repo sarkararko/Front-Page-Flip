@@ -518,11 +518,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex border-b border-[#E2E8F0] mb-8 gap-6">
+      <div className="flex border-b border-[#E2E8F0] mb-8 gap-4 sm:gap-6 overflow-x-auto whitespace-nowrap pb-0.5">
         <button
           type="button"
           onClick={() => setActiveTab('overview')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors ${
+          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors shrink-0 cursor-pointer ${
             activeTab === 'overview' ? 'text-[#1677FF]' : 'text-[#64748B] hover:text-[#102A56]'
           }`}
         >
@@ -536,7 +536,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('subjects')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors ${
+          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors shrink-0 cursor-pointer ${
             activeTab === 'subjects' ? 'text-[#1677FF]' : 'text-[#64748B] hover:text-[#102A56]'
           }`}
         >
@@ -550,7 +550,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('pdfs')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors ${
+          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors shrink-0 cursor-pointer ${
             activeTab === 'pdfs' ? 'text-[#1677FF]' : 'text-[#64748B] hover:text-[#102A56]'
           }`}
         >
@@ -564,7 +564,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('students')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors ${
+          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors shrink-0 cursor-pointer ${
             activeTab === 'students' ? 'text-[#1677FF]' : 'text-[#64748B] hover:text-[#102A56]'
           }`}
         >

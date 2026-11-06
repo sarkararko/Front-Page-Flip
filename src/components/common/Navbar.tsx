@@ -68,9 +68,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-[#E2E8F0] shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between min-h-[114px] py-1">
+        <div className="flex items-center justify-between min-h-[96px] sm:min-h-[114px] py-1">
           {/* Left: Brand Logo + Navigation Links + Registered Students (Balanced Equal Spacing) */}
-          <div className="flex items-center gap-2.5 sm:gap-3 lg:gap-3.5 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 lg:gap-3.5 shrink-0">
             <div
               onClick={() => onNavigate('home')}
               className="cursor-pointer inline-flex items-center select-none py-[2px] px-1 shrink-0"
@@ -78,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <img
                 src="https://res.cloudinary.com/fi4r80wz/image/upload/v1792825222/fpf_logo_99_spkx2y.png"
                 alt="Front-Page Flip"
-                className="w-[157px] h-[110px] object-contain transition-transform duration-200 hover:scale-105"
+                className="w-[125px] sm:w-[157px] h-[86px] sm:h-[110px] object-contain transition-transform duration-200 hover:scale-105"
                 loading="eager"
               />
             </div>
@@ -95,7 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     key={link.id}
                     type="button"
                     onClick={() => onNavigate(link.id)}
-                    className={`relative px-2.5 lg:px-3 py-1.5 text-sm font-semibold transition-colors cursor-pointer ${
+                    className={`relative px-2 lg:px-3 py-1.5 text-xs lg:text-sm font-semibold transition-colors cursor-pointer ${
                       isActive
                         ? 'text-[#1677FF]'
                         : 'text-[#1E293B] hover:text-[#1677FF]'
@@ -113,11 +113,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Registered Students Count Badge on Desktop (Equally spaced after About) */}
             <div
               title="Total registered student accounts in Aiven MySQL database"
-              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E6F8F5] border border-[#A5E7DC] text-[#00A88F] text-xs lg:text-[13px] font-semibold select-none shadow-2xs transition-all hover:bg-[#D8F5F0]"
+              className="hidden md:flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1 lg:py-1.5 rounded-full bg-[#E6F8F5] border border-[#A5E7DC] text-[#00A88F] text-xs lg:text-[13px] font-semibold select-none shadow-2xs transition-all hover:bg-[#D8F5F0]"
             >
-              <Users className="w-4 h-4 text-[#00A88F] fill-[#00A88F] shrink-0" />
+              <Users className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-[#00A88F] fill-[#00A88F] shrink-0" />
               {registeredStudentsLoading ? (
-                <span className="inline-block w-20 lg:w-24 h-4 bg-[#A5E7DC]/70 rounded-full animate-pulse" />
+                <span className="inline-block w-16 lg:w-24 h-4 bg-[#A5E7DC]/70 rounded-full animate-pulse" />
               ) : (
                 <span className="text-xs lg:text-[13px] font-semibold text-[#00A88F] whitespace-nowrap">
                   <span className="font-bold">
@@ -125,9 +125,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                       ? registeredStudentsCount.toLocaleString()
                       : '0'}
                   </span>{' '}
-                  <span>
+                  <span className="hidden lg:inline">
                     {registeredStudentsCount === 1 ? 'Registered Student' : 'Registered Students'}
                   </span>
+                  <span className="lg:hidden inline">Students</span>
                 </span>
               )}
             </div>
@@ -372,51 +373,132 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Mobile Expanded Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden py-3 border-t border-slate-200 space-y-1">
-            {navLinks.map((link) => (
+          <div className="md:hidden py-4 border-t border-slate-200 space-y-2 animate-in slide-in-from-top-2 duration-150">
+            {/* User Profile Header in Mobile Drawer if logged in */}
+            {currentUser && (
+              <div className="px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[#0066FF] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                    {currentUser.avatar || 'AD'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-[#102A56] truncate">{currentUser.name}</p>
+                    <p className="text-[11px] text-[#64748B] truncate">{currentUser.email}</p>
+                  </div>
+                </div>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${
+                    currentUser.role === 'admin'
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-blue-100 text-[#1677FF]'
+                  }`}
+                >
+                  {currentUser.role}
+                </span>
+              </div>
+            )}
+
+            {/* Core Nav Links */}
+            <div className="space-y-0.5">
+              {navLinks.map((link) => (
+                <button
+                  key={link.id}
+                  type="button"
+                  onClick={() => {
+                    onNavigate(link.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`flex items-center justify-between w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer min-h-[44px] ${
+                    activeTab === link.id
+                      ? 'bg-blue-50 text-[#1677FF]'
+                      : 'text-[#1E293B] hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{link.label}</span>
+                  {activeTab === link.id && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1677FF]" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* My Library & Sub-Items */}
+            <div className="pt-1 border-t border-slate-100 space-y-0.5">
               <button
-                key={link.id}
                 type="button"
                 onClick={() => {
-                  onNavigate(link.id);
+                  onNavigate('my-library');
                   setMobileMenuOpen(false);
                 }}
-                className={`block w-full text-left px-3 py-2 rounded-md text-sm font-semibold ${
-                  activeTab === link.id
+                className={`flex items-center gap-2.5 w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer min-h-[44px] ${
+                  activeTab === 'my-library'
                     ? 'bg-blue-50 text-[#1677FF]'
-                    : 'text-[#64748B] hover:bg-slate-50'
+                    : 'text-[#1E293B] hover:bg-slate-50'
                 }`}
               >
-                {link.label}
+                <Bookmark className="w-4 h-4 text-[#1677FF]" />
+                <span>My Library</span>
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                onNavigate('my-library');
-                setMobileMenuOpen(false);
-              }}
-              className="block w-full text-left px-3 py-2 rounded-md text-sm font-semibold text-[#102A56] hover:bg-slate-50"
-            >
-              My Library
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                onNavigate('golden');
-                setMobileMenuOpen(false);
-              }}
-              className="w-full text-left px-3 py-2.5 rounded-md text-sm font-bold bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/80 text-amber-950 flex items-center justify-between"
-            >
-              <span className="flex items-center gap-2">
-                <Crown className="w-4 h-4 text-amber-600 fill-amber-400" />
-                <span>Golden</span>
-              </span>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950">
-                {currentUser?.isGolden ? 'Active' : '₹149 Lifetime'}
-              </span>
-            </button>
-            <div className="px-3 py-2 flex items-center justify-between text-xs font-medium bg-[#E6F8F5] border border-[#A5E7DC] rounded-lg">
+
+              <div className="pl-6 space-y-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavigate('my-library', { subTab: 'read-later' });
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-[#1677FF] hover:bg-slate-50"
+                >
+                  <BookMarked className="w-3.5 h-3.5 text-[#1677FF]" />
+                  <span>Read Later</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavigate('my-library', { subTab: 'favorites' });
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-[#1677FF] hover:bg-slate-50"
+                >
+                  <Star className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Favorite Subjects</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavigate('my-library', { subTab: 'recently-viewed' });
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-[#1677FF] hover:bg-slate-50"
+                >
+                  <Clock className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Recently Viewed</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Golden Lifetime Access Button */}
+            <div className="pt-1 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('golden');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-50 via-yellow-50 to-amber-50 border border-amber-200/90 text-amber-950 flex items-center justify-between cursor-pointer min-h-[44px]"
+              >
+                <span className="flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-amber-600 fill-amber-400" />
+                  <span>Front-Page Flip Golden</span>
+                </span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-2xs">
+                  {currentUser?.isGolden ? 'Active' : '₹149 Lifetime'}
+                </span>
+              </button>
+            </div>
+
+            {/* Registered Students Pill */}
+            <div className="px-3.5 py-2 flex items-center justify-between text-xs font-medium bg-[#E6F8F5] border border-[#A5E7DC] rounded-xl">
               <span className="flex items-center gap-1.5 text-[#00A88F]">
                 <Users className="w-3.5 h-3.5 text-[#00A88F] fill-[#00A88F]" />
                 <span className="font-semibold">Registered Students</span>
@@ -425,18 +507,51 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {typeof registeredStudentsCount === 'number' ? registeredStudentsCount.toLocaleString() : '0'}
               </span>
             </div>
-            {currentUser?.role === 'admin' && (
-              <button
-                type="button"
-                onClick={() => {
-                  onNavigate('admin');
-                  setMobileMenuOpen(false);
-                }}
-                className="block w-full text-left px-3 py-2 rounded-md text-sm font-semibold text-purple-700 hover:bg-purple-50"
-              >
-                Admin Dashboard
-              </button>
-            )}
+
+            {/* Admin and Profile Links */}
+            <div className="pt-1 border-t border-slate-100 space-y-0.5">
+              {currentUser?.role === 'admin' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavigate('admin');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold text-purple-700 hover:bg-purple-50 min-h-[44px]"
+                >
+                  <Shield className="w-4 h-4 text-purple-600" />
+                  <span>Admin Dashboard</span>
+                </button>
+              )}
+
+              {currentUser && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavigate('profile');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 min-h-[44px]"
+                >
+                  <UserIcon className="w-4 h-4 text-slate-500" />
+                  <span>Profile &amp; Settings</span>
+                </button>
+              )}
+
+              {currentUser && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onLogout();
+                  }}
+                  className="flex items-center gap-2 w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 min-h-[44px]"
+                >
+                  <LogOut className="w-4 h-4 text-red-500" />
+                  <span>Sign Out</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

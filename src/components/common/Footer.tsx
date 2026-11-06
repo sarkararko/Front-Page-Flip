@@ -35,15 +35,6 @@ type PolicyType = 'how-it-works' | 'refund-policy' | 'privacy-policy' | 'terms-c
 
 export const Footer: React.FC<FooterProps> = ({ currentUser, onNavigate }) => {
   const [activeModal, setActiveModal] = useState<PolicyType>(null);
-  const [copiedEmail, setCopiedEmail] = useState(false);
-
-  const handleCopyEmail = (e: React.MouseEvent) => {
-    e.preventDefault();
-    navigator.clipboard.writeText('frontpageflipofficial@gmail.com').then(() => {
-      setCopiedEmail(true);
-      setTimeout(() => setCopiedEmail(false), 2500);
-    });
-  };
 
   const handleSocialClick = (platform: 'linkedin' | 'instagram', e: React.MouseEvent) => {
     const url = SOCIAL_LINKS[platform];
@@ -71,7 +62,7 @@ export const Footer: React.FC<FooterProps> = ({ currentUser, onNavigate }) => {
                 <img
                   src="https://res.cloudinary.com/fi4r80wz/image/upload/v1792825222/fpf_logo_99_spkx2y.png"
                   alt="Front-Page Flip"
-                  className="h-10 sm:h-11 w-auto object-contain"
+                  className="h-20 sm:h-[88px] w-auto object-contain"
                   loading="lazy"
                 />
               </div>
@@ -83,11 +74,6 @@ export const Footer: React.FC<FooterProps> = ({ currentUser, onNavigate }) => {
               <p className="text-xs text-[#64748B] leading-relaxed max-w-sm">
                 Explore educational PDFs, organize your favorite resources, and learn at your own pace.
               </p>
-
-              <div className="pt-2 flex items-center gap-2 text-xs text-slate-500 font-medium">
-                <MapPin className="w-3.5 h-3.5 text-[#00A88F] shrink-0" />
-                <span>Kolkata, India</span>
-              </div>
             </div>
 
             {/* 2. Quick Links */}

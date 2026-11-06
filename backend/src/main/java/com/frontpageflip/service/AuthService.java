@@ -93,7 +93,9 @@ public class AuthService {
                 saveVerificationToken(saved, code, 24, ChronoUnit.HOURS);
                 boolean sent = emailService.sendVerificationEmail(saved.getEmail(), saved.getName(), code);
                 if (!sent) {
-                    throw new BadRequestException("We couldn't send your verification code. Please try again.");
+                    String detail = emailService.getLastErrorMessage();
+                    throw new BadRequestException("Verification email delivery failed via Brevo" +
+                            (detail != null && !detail.isBlank() ? ": " + detail : ". Please check your email configuration and retry."));
                 }
 
                 return new AuthResponse(null, toUserDto(saved),
@@ -121,7 +123,9 @@ public class AuthService {
 
         boolean sent = emailService.sendVerificationEmail(savedUser.getEmail(), savedUser.getName(), code);
         if (!sent) {
-            throw new BadRequestException("We couldn't send your verification code. Please try again.");
+            String detail = emailService.getLastErrorMessage();
+            throw new BadRequestException("Verification email delivery failed via Brevo" +
+                    (detail != null && !detail.isBlank() ? ": " + detail : ". Please check your email configuration and retry."));
         }
 
         return new AuthResponse(
@@ -266,7 +270,7 @@ public class AuthService {
         // Rate limit: 60-second cooldown
         if (user.getLastVerificationSentAt() != null &&
                 Instant.now().isBefore(user.getLastVerificationSentAt().plusSeconds(60))) {
-            return new GenericResponse(true, "A verification email was requested recently. Please check your inbox or wait a moment before trying again.");
+            throw new BadRequestException("A verification email was requested recently. Please check your inbox or wait 60 seconds before trying again.");
         }
 
         String code = generateNumericOtp(6);
@@ -277,7 +281,9 @@ public class AuthService {
 
         boolean sent = emailService.sendVerificationEmail(user.getEmail(), user.getName(), code);
         if (!sent) {
-            throw new BadRequestException("We couldn't send your verification code. Please try again.");
+            String detail = emailService.getLastErrorMessage();
+            throw new BadRequestException("Verification email delivery failed via Brevo" +
+                    (detail != null && !detail.isBlank() ? ": " + detail : ". Please check your email configuration and retry."));
         }
 
         return new GenericResponse(true, "If an unverified account exists for this email address, a new verification code has been dispatched.");
@@ -300,23 +306,27 @@ public class AuthService {
             boolean canSend = user.getLastPasswordResetSentAt() == null ||
                     Instant.now().isAfter(user.getLastPasswordResetSentAt().plusSeconds(60));
 
-            if (canSend) {
-                String code = generateNumericOtp(6);
-                PasswordResetToken resetToken = new PasswordResetToken(
-                        "prt_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16),
-                        user,
-                        code,
-                        Instant.now().plus(15, ChronoUnit.MINUTES) // 15-minute expiry
-                );
-                passwordResetTokenRepository.save(resetToken);
+            if (!canSend) {
+                throw new BadRequestException("A password recovery email was requested recently. Please check your inbox or wait 60 seconds before trying again.");
+            }
 
-                user.setLastPasswordResetSentAt(Instant.now());
-                userRepository.save(user);
+            String code = generateNumericOtp(6);
+            PasswordResetToken resetToken = new PasswordResetToken(
+                    "prt_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16),
+                    user,
+                    code,
+                    Instant.now().plus(15, ChronoUnit.MINUTES) // 15-minute expiry
+            );
+            passwordResetTokenRepository.save(resetToken);
 
-                boolean sent = emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), code);
-                if (!sent) {
-                    throw new BadRequestException("We couldn't send your recovery code. Please try again.");
-                }
+            user.setLastPasswordResetSentAt(Instant.now());
+            userRepository.save(user);
+
+            boolean sent = emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), code);
+            if (!sent) {
+                String detail = emailService.getLastErrorMessage();
+                throw new BadRequestException("Password recovery email delivery failed via Brevo" +
+                        (detail != null && !detail.isBlank() ? ": " + detail : ". Please check your email configuration and retry."));
             }
         }
 

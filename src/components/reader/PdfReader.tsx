@@ -72,7 +72,13 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState<number>(pdf.pageCount || 1);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [zoomScale, setZoomScale] = useState<number>(1.2);
+  const [zoomScale, setZoomScale] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 640) return 0.65;
+      if (window.innerWidth < 1024) return 0.9;
+    }
+    return 1.2;
+  });
   const [rotation, setRotation] = useState<number>(0);
 
   // UI & Loading State
@@ -466,18 +472,19 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
             <button
               type="button"
               onClick={handleDownloadClick}
-              className="p-2 px-3 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-500 hover:to-yellow-500 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer"
+              className="p-1.5 sm:p-2 px-2.5 sm:px-3 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-500 hover:to-yellow-500 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer shrink-0"
               title="Download original PDF file"
             >
               {downloadSuccess ? (
                 <>
-                  <Check className="w-4 h-4 text-emerald-950" />
+                  <Check className="w-4 h-4 text-emerald-950 shrink-0" />
                   <span className="hidden sm:inline">Downloaded</span>
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4 text-slate-950" />
+                  <Download className="w-4 h-4 text-slate-950 shrink-0" />
                   <span className="hidden sm:inline">Download PDF</span>
+                  <span className="sm:hidden text-[11px]">PDF</span>
                 </>
               )}
             </button>
@@ -486,11 +493,12 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
             <button
               type="button"
               onClick={handleDownloadClick}
-              className="p-2 px-3 bg-gradient-to-r from-amber-500/20 via-yellow-500/25 to-amber-500/20 hover:from-amber-500 hover:via-yellow-400 hover:to-amber-500 border border-amber-400/80 hover:border-amber-300 text-amber-300 hover:text-slate-950 font-extrabold rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/10 hover:shadow-amber-500/30 cursor-pointer group"
+              className="p-1.5 sm:p-2 px-2 sm:px-3 bg-gradient-to-r from-amber-500/20 via-yellow-500/25 to-amber-500/20 hover:from-amber-500 hover:via-yellow-400 hover:to-amber-500 border border-amber-400/80 hover:border-amber-300 text-amber-300 hover:text-slate-950 font-extrabold rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/10 hover:shadow-amber-500/30 cursor-pointer group shrink-0"
               title="Downloading study materials requires Lifetime Golden membership"
             >
-              <Crown className="w-4 h-4 text-amber-400 group-hover:text-slate-950 fill-amber-400 group-hover:fill-slate-950 transition-colors" />
-              <span className="tracking-wide">Download — Golden</span>
+              <Crown className="w-4 h-4 text-amber-400 group-hover:text-slate-950 fill-amber-400 group-hover:fill-slate-950 transition-colors shrink-0" />
+              <span className="tracking-wide hidden sm:inline">Download — Golden</span>
+              <span className="tracking-wide sm:hidden text-[11px]">Golden</span>
             </button>
           )}
 
@@ -614,8 +622,8 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
 
       {/* ================= BOTTOM QUICK BAR ================= */}
       <footer className="bg-[#141C2E] border-t border-slate-700/80 px-4 py-2 flex items-center justify-between text-xs text-slate-400">
-        <div className="flex items-center gap-4">
-          <span className="font-medium text-slate-300">{pdf.fileName || 'Original Document'}</span>
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <span className="font-medium text-slate-300 truncate max-w-[130px] sm:max-w-xs">{pdf.fileName || 'Original Document'}</span>
           <span className="hidden sm:inline">•</span>
           <span className="hidden sm:inline">Size: {pdf.fileSize}</span>
           <span className="hidden sm:inline">•</span>

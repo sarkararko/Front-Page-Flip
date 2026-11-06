@@ -161,11 +161,12 @@ In your Render Dashboard (**Web Service** > **Environment** tab), configure the 
 | `JWT_SECRET` | `404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970` | 256-bit HMAC-SHA256 Secret |
 | `CREATOR_EMAIL` | `arkaparna.ds@gmail.com` | Designated System Administrator Email |
 | `ADMIN_INITIAL_PASSWORD` | `YourStrongAdminPassword2026!` | Initial Admin BCrypt Seed (applied only if no password set) |
+| `BREVO_API_KEY` | `xkeysib-xxxxxxxxxxxx` | Brevo v3 REST API Key (HTTPS port 443; prevents outbound port 587 timeouts on Render) |
 | `MAIL_HOST` | `smtp-relay.brevo.com` | Brevo SMTP Host |
-| `MAIL_PORT` | `587` | Brevo SMTP Port (STARTTLS) |
+| `MAIL_PORT` | `587` | Brevo SMTP Port (587 STARTTLS, 2525 alternate, or 465 SSL) |
 | `MAIL_USERNAME` | `your-brevo-login@domain.com` | Brevo SMTP Account Login |
 | `MAIL_PASSWORD` | `your-brevo-smtp-master-key` | Brevo SMTP Key |
-| `MAIL_FROM` | `no-reply@frontpageflip.com` | Verified Brevo Sender Email |
+| `MAIL_FROM` | `frontpageflipofficial@gmail.com` | Verified Brevo Sender Email |
 | `FRONTEND_URL` | `https://your-frontend.vercel.app` | Frontend Origin (for 1-click verification/reset links) |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,https://your-frontend.vercel.app` | Allowed CORS Origins |
 

@@ -55,11 +55,11 @@ export const MyLibraryPage: React.FC<MyLibraryPageProps> = ({
       </div>
 
       {/* Tabs Row */}
-      <div className="flex border-b border-[#E2E8F0] mb-8 gap-4 sm:gap-8">
+      <div className="flex border-b border-[#E2E8F0] mb-8 gap-4 sm:gap-8 overflow-x-auto whitespace-nowrap pb-0.5">
         <button
           type="button"
           onClick={() => setActiveTab('read-later')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors ${
+          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors shrink-0 cursor-pointer ${
             activeTab === 'read-later' ? 'text-[#1677FF]' : 'text-[#64748B] hover:text-[#102A56]'
           }`}
         >

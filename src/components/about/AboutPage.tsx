@@ -1,87 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ShieldAlert,
   FileCheck2,
   Bot,
   Sparkles,
   BookOpen,
-  Users,
-  Search,
-  Bookmark,
-  Send,
-  HelpCircle,
-  CheckCircle2,
   Lock,
   ArrowRight,
-  GraduationCap,
 } from 'lucide-react';
-import { Logo } from '../common/Logo';
 
 interface AboutPageProps {
   onNavigate: (tab: string) => void;
 }
 
 export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
-  // Filo AI Assistant interactive state
-  const [filoQuery, setFiloQuery] = useState('');
-  const [filoMessages, setFiloMessages] = useState<Array<{ sender: 'user' | 'filo'; text: string; time: string }>>([
-    {
-      sender: 'filo',
-      text: 'Hi there! I am Filo, your dedicated Front-Page Flip AI study assistant. If you have any problem or question related to any subject or study notes, just ask me!',
-      time: 'Just now',
-    },
-  ]);
-  const [isFiloThinking, setIsFiloThinking] = useState(false);
-
-  const handleAskFilo = (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = filoQuery.trim();
-    if (!query) return;
-
-    const userMsg = {
-      sender: 'user' as const,
-      text: query,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    setFiloMessages((prev) => [...prev, userMsg]);
-    setFiloQuery('');
-    setIsFiloThinking(true);
-
-    setTimeout(() => {
-      let reply = '';
-      const lower = query.toLowerCase();
-
-      if (lower.includes('upload') || lower.includes('add pdf') || lower.includes('edit')) {
-        reply =
-          'Regarding uploads: Under our Security Policy, students cannot create, edit, delete, or upload subjects or PDFs. All administrative endpoints require verified administrator privileges to keep all materials academically verified.';
-      } else if (lower.includes('video') || lower.includes('quiz') || lower.includes('media')) {
-        reply =
-          'Front-Page Flip accepts strictly validated educational PDF notes. No video links, online quizzes, or unrelated media can be added, ensuring a pure, distraction-free study environment.';
-      } else if (lower.includes('math') || lower.includes('calculus') || lower.includes('algebra')) {
-        reply =
-          'For Mathematics, check out our curated subjects under "Subjects" -> "Mathematics". You can find comprehensive lecture notes, problem sets, and formula cheat sheets!';
-      } else if (lower.includes('cs') || lower.includes('computer') || lower.includes('data structure') || lower.includes('algorithm')) {
-        reply =
-          'Computer Science materials include complete lecture notes on Data Structures & Algorithms, Database Systems, Operating Systems, and Web Engineering. Check the Subjects tab!';
-      } else if (lower.includes('physics') || lower.includes('chemistry') || lower.includes('science')) {
-        reply =
-          'Our Science repository contains detailed notes for Classical Mechanics, Electromagnetism, Organic Chemistry, and Thermodynamics with step-by-step derivations.';
-      } else {
-        reply = `Great question about "${query}"! You can explore all verified notes for this topic in the "Browse PDFs" section or search by keywords in the search bar above. If you need any specific subject curriculum guide, I'm here to help!`;
-      }
-
-      setFiloMessages((prev) => [
-        ...prev,
-        {
-          sender: 'filo',
-          text: reply,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-      setIsFiloThinking(false);
-    }, 650);
-  };
-
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       {/* 1. Header Banner */}
@@ -127,7 +59,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* 2. Three Mandatory Security & Platform Policies (Requested by User) */}
+      {/* 2. Security & Quality Standards */}
       <section className="mb-12">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 text-[#009688] text-xs font-bold mb-2">
@@ -163,10 +95,6 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
                 are restricted to authorized administrators with verified credentials.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-red-600 font-semibold">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>Enforced by Spring Boot RBAC &amp; JWT</span>
-            </div>
           </div>
 
           {/* Policy Card 2: Validated Educational PDFs Only */}
@@ -189,13 +117,9 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
                 video players and algorithmic ads, students stay in a focused study flow.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-[#0066FF] font-semibold">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>Cloudinary Raw Storage &amp; Magic-Byte Verification</span>
-            </div>
           </div>
 
-          {/* Policy Card 3: Subject Help & Filo AI Assistant */}
+          {/* Policy Card 3: Subject Help & Student Support */}
           <div className="bg-white rounded-2xl border-2 border-teal-100 hover:border-teal-200 p-6 sm:p-7 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
             <div>
               <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200 text-[#00A88F] flex items-center justify-center mb-4">
@@ -215,139 +139,6 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
                 24/7 to guide you through topics, clarify concepts, and recommend notes.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-[#00A88F] font-semibold">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>Available 24/7 for Student Queries</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. Interactive Filo AI Assistant Section */}
-      <section className="mb-12 bg-gradient-to-br from-[#F0FDFB] via-white to-[#F4F9FF] rounded-3xl border border-[#B2ECE4] p-6 sm:p-8 md:p-10 shadow-sm">
-        <div className="flex flex-col md:flex-row items-start justify-between gap-6 mb-6">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#00A88F] to-[#00E5C0] text-white flex items-center justify-center shadow-md shadow-teal-500/20">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-xl font-black text-[#0F264C]">Ask Filo — AI Assistant</h3>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase tracking-wide">
-                  Online
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 font-medium">
-                Ask any question about subjects, notes, academic topics, or platform policies.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold bg-white px-3.5 py-1.5 rounded-full border border-slate-200">
-            <HelpCircle className="w-4 h-4 text-[#00A88F]" />
-            <span>Instant Subject Resolution</span>
-          </div>
-        </div>
-
-        {/* Filo Chat Messages Container */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-4 sm:p-5 h-64 overflow-y-auto space-y-3 mb-4">
-          {filoMessages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex items-start gap-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {msg.sender === 'filo' && (
-                <div className="w-7 h-7 rounded-lg bg-[#00A88F] text-white flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
-                  F
-                </div>
-              )}
-              <div
-                className={`max-w-xl rounded-2xl px-4 py-2.5 text-xs sm:text-[13px] leading-relaxed shadow-2xs ${
-                  msg.sender === 'user'
-                    ? 'bg-[#0066FF] text-white font-medium rounded-br-xs'
-                    : 'bg-[#F1F8F7] text-slate-800 font-normal border border-[#D0F0EB] rounded-bl-xs'
-                }`}
-              >
-                <p>{msg.text}</p>
-                <span
-                  className={`block text-[10px] mt-1 text-right ${
-                    msg.sender === 'user' ? 'text-blue-100' : 'text-slate-400'
-                  }`}
-                >
-                  {msg.time}
-                </span>
-              </div>
-            </div>
-          ))}
-
-          {isFiloThinking && (
-            <div className="flex items-center gap-2 text-xs text-[#00A88F] font-semibold">
-              <Bot className="w-4 h-4 animate-spin text-[#00A88F]" />
-              <span>Filo is typing...</span>
-            </div>
-          )}
-        </div>
-
-        {/* Filo Query Input Bar */}
-        <form onSubmit={handleAskFilo} className="flex items-center gap-2">
-          <input
-            type="text"
-            value={filoQuery}
-            onChange={(e) => setFiloQuery(e.target.value)}
-            placeholder="Ask Filo anything about subjects, topics, or Front-Page Flip policies..."
-            className="flex-1 py-3 px-4 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#00A88F] focus:ring-1 focus:ring-[#00A88F]"
-          />
-          <button
-            type="submit"
-            disabled={!filoQuery.trim()}
-            className="px-5 py-3 bg-[#00A88F] hover:bg-[#008f7a] text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-          >
-            <span>Ask</span>
-            <Send className="w-3.5 h-3.5" />
-          </button>
-        </form>
-      </section>
-
-      {/* 4. Platform Specifications & Architecture */}
-      <section className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-10 shadow-xs">
-        <h3 className="text-xl sm:text-2xl font-black text-[#0F264C] tracking-tight mb-2">
-          Technical Architecture &amp; Reliability
-        </h3>
-        <p className="text-xs sm:text-sm text-slate-600 mb-6">
-          Engineered for university-scale student traffic with high reliability and low latency.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Database</h4>
-            <p className="text-sm font-bold text-[#0F264C]">Aiven Cloud MySQL</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Encrypted SSL/TLS storage of student accounts, library bookmarks, and metadata.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">PDF Storage</h4>
-            <p className="text-sm font-bold text-[#0F264C]">Cloudinary Raw Assets</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Dedicated cloud bucket storing raw PDF streams with secure CDN delivery.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Backend Engine</h4>
-            <p className="text-sm font-bold text-[#0F264C]">Spring Boot 3.3.4</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Java 21 secure microservice with strict JWT role validation on Render.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Frontend Client</h4>
-            <p className="text-sm font-bold text-[#0F264C]">React &amp; Tailwind CSS</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Responsive modern UI with instant search, interactive reader, and local progress sync.
-            </p>
           </div>
         </div>
       </section>

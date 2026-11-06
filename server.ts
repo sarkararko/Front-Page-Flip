@@ -246,7 +246,11 @@ app.use(async (req, res, next) => {
       return res.send(Buffer.from(buffer));
     } catch (err: any) {
       console.warn('[Proxy Error] Could not forward to Render backend:', err?.message);
-      return next();
+      return res.status(503).json({
+        status: 503,
+        error: 'Backend Gateway Unavailable',
+        message: 'Could not connect to the backend service. If the server was sleeping on Render, it is now waking up; please retry in 30 seconds.',
+      });
     }
   }
   next();
