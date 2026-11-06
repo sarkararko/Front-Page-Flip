@@ -90,19 +90,41 @@ public class GoldenController {
                 ? (String) authentication.getPrincipal()
                 : null;
 
-        if (userId == null || userId.isBlank()) {
+        if (userId == null || userId.isBlank() || "anonymousUser".equalsIgnoreCase(userId)) {
             // Also check fallback userId in request body if present
             if (body != null && body.containsKey("userId")) {
                 userId = String.valueOf(body.get("userId"));
             }
         }
 
-        if (userId == null || userId.isBlank() || "anonymousUser".equalsIgnoreCase(userId)) {
-            throw new UnauthorizedException("Please sign in to your student account to purchase Lifetime Golden membership.");
+        User user = null;
+        if (userId != null && !userId.isBlank() && !"anonymousUser".equalsIgnoreCase(userId)) {
+            user = userRepository.findById(userId).orElse(null);
+            if (user == null) {
+                user = userRepository.findByEmailIgnoreCase(userId).orElse(null);
+            }
         }
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UnauthorizedException("User account not found. Please log in again."));
+        if (user == null && authentication != null && authentication.getName() != null && !"anonymousUser".equalsIgnoreCase(authentication.getName())) {
+            user = userRepository.findByEmailIgnoreCase(authentication.getName()).orElse(null);
+            if (user == null) {
+                user = userRepository.findById(authentication.getName()).orElse(null);
+            }
+        }
+
+        if (user == null && body != null && body.containsKey("userEmail")) {
+            user = userRepository.findByEmailIgnoreCase(String.valueOf(body.get("userEmail"))).orElse(null);
+        }
+
+        if (user == null && body != null && body.containsKey("email")) {
+            user = userRepository.findByEmailIgnoreCase(String.valueOf(body.get("email"))).orElse(null);
+        }
+
+        if (user == null) {
+            log.warn("createOrder rejected: unable to identify student for principal='{}' body={}",
+                    authentication != null ? authentication.getPrincipal() : null, body);
+            throw new UnauthorizedException("Please sign in to your student account to purchase Lifetime Golden membership.");
+        }
 
         if (user.isGolden()) {
             return ResponseEntity.ok(Map.of(
@@ -233,8 +255,23 @@ public class GoldenController {
                 : body.get("userId");
 
         User targetUser = null;
-        if (userId != null && !userId.isBlank()) {
+        if (userId != null && !userId.isBlank() && !"anonymousUser".equalsIgnoreCase(userId)) {
             targetUser = userRepository.findById(userId).orElse(null);
+            if (targetUser == null) {
+                targetUser = userRepository.findByEmailIgnoreCase(userId).orElse(null);
+            }
+        }
+        if (targetUser == null && authentication != null && authentication.getName() != null && !"anonymousUser".equalsIgnoreCase(authentication.getName())) {
+            targetUser = userRepository.findByEmailIgnoreCase(authentication.getName()).orElse(null);
+            if (targetUser == null) {
+                targetUser = userRepository.findById(authentication.getName()).orElse(null);
+            }
+        }
+        if (targetUser == null && body.containsKey("userEmail")) {
+            targetUser = userRepository.findByEmailIgnoreCase(body.get("userEmail")).orElse(null);
+        }
+        if (targetUser == null && body.containsKey("email")) {
+            targetUser = userRepository.findByEmailIgnoreCase(body.get("email")).orElse(null);
         }
         if (targetUser == null) {
             targetUser = userRepository.findByPaymentOrderId(orderId).orElse(null);

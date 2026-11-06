@@ -68,26 +68,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-[#E2E8F0] shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18 sm:h-20">
-          {/* Left: Brand Logo + Navigation Links */}
-          <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+        <div className="flex items-center justify-between min-h-[114px] py-1">
+          {/* Left: Brand Logo + Navigation Links + Registered Students (Balanced Equal Spacing) */}
+          <div className="flex items-center gap-2.5 sm:gap-3 lg:gap-3.5 shrink-0">
             <div
               onClick={() => onNavigate('home')}
-              className="cursor-pointer inline-flex items-center select-none"
+              className="cursor-pointer inline-flex items-center select-none py-[2px] px-1 shrink-0"
             >
               <img
                 src="https://res.cloudinary.com/fi4r80wz/image/upload/v1792825222/fpf_logo_99_spkx2y.png"
                 alt="Front-Page Flip"
-                className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 hover:scale-105"
+                className="w-[157px] h-[110px] object-contain transition-transform duration-200 hover:scale-105"
                 loading="eager"
               />
             </div>
 
             {/* Subtle Divider between logo and nav links */}
-            <div className="hidden md:block h-6 w-px bg-slate-200/90 mx-1" />
+            <div className="hidden md:block h-6 w-px bg-slate-200/90" />
 
-            {/* Desktop Center Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1 lg:gap-3">
+            {/* Desktop Center Navigation Links (Compact Spacing) */}
+            <nav className="hidden md:flex items-center gap-0.5 lg:gap-1">
               {navLinks.map((link) => {
                 const isActive = activeTab === link.id;
                 return (
@@ -95,7 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     key={link.id}
                     type="button"
                     onClick={() => onNavigate(link.id)}
-                    className={`relative px-3.5 py-2 text-sm font-semibold transition-colors cursor-pointer ${
+                    className={`relative px-2.5 lg:px-3 py-1.5 text-sm font-semibold transition-colors cursor-pointer ${
                       isActive
                         ? 'text-[#1677FF]'
                         : 'text-[#1E293B] hover:text-[#1677FF]'
@@ -103,37 +103,51 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <span>{link.label}</span>
                     {isActive && (
-                      <span className="absolute -bottom-5 sm:-bottom-6 left-1/2 -translate-x-1/2 w-10 h-[3.5px] bg-[#1677FF] rounded-full" />
+                      <span className="absolute -bottom-9 sm:-bottom-10 left-1/2 -translate-x-1/2 w-10 h-[3.5px] bg-[#1677FF] rounded-full" />
                     )}
                   </button>
                 );
               })}
             </nav>
-          </div>
 
-          {/* Right Navigation Controls */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Registered Students Count Badge (Green Teal from Logo) - Positioned strictly to the left of Search Icon */}
+            {/* Registered Students Count Badge on Desktop (Equally spaced after About) */}
             <div
               title="Total registered student accounts in Aiven MySQL database"
-              className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-[#E6F8F5] border border-[#A5E7DC] text-[#00A88F] text-xs sm:text-[13px] font-semibold select-none shadow-2xs transition-all hover:bg-[#D8F5F0]"
+              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#E6F8F5] border border-[#A5E7DC] text-[#00A88F] text-xs lg:text-[13px] font-semibold select-none shadow-2xs transition-all hover:bg-[#D8F5F0]"
             >
               <Users className="w-4 h-4 text-[#00A88F] fill-[#00A88F] shrink-0" />
               {registeredStudentsLoading ? (
-                <span className="inline-block w-20 sm:w-28 h-4 bg-[#A5E7DC]/70 rounded-full animate-pulse" />
+                <span className="inline-block w-20 lg:w-24 h-4 bg-[#A5E7DC]/70 rounded-full animate-pulse" />
               ) : (
-                <span className="text-xs sm:text-[13px] font-semibold text-[#00A88F] whitespace-nowrap">
+                <span className="text-xs lg:text-[13px] font-semibold text-[#00A88F] whitespace-nowrap">
                   <span className="font-bold">
                     {typeof registeredStudentsCount === 'number'
                       ? registeredStudentsCount.toLocaleString()
                       : '0'}
                   </span>{' '}
-                  <span className="hidden sm:inline">
+                  <span>
                     {registeredStudentsCount === 1 ? 'Registered Student' : 'Registered Students'}
                   </span>
-                  <span className="sm:hidden">
-                    {registeredStudentsCount === 1 ? 'Student' : 'Students'}
-                  </span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Right Navigation Controls */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Mobile-only Registered Students Badge */}
+            <div
+              title="Total registered student accounts in Aiven MySQL database"
+              className="md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E6F8F5] border border-[#A5E7DC] text-[#00A88F] text-[11px] font-semibold select-none shadow-2xs"
+            >
+              <Users className="w-3.5 h-3.5 text-[#00A88F] fill-[#00A88F] shrink-0" />
+              {registeredStudentsLoading ? (
+                <span className="inline-block w-14 h-3 bg-[#A5E7DC]/70 rounded-full animate-pulse" />
+              ) : (
+                <span className="font-bold">
+                  {typeof registeredStudentsCount === 'number'
+                    ? registeredStudentsCount.toLocaleString()
+                    : '0'}
                 </span>
               )}
             </div>

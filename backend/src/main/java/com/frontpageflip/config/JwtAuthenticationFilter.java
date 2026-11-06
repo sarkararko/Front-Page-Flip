@@ -6,6 +6,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -15,10 +17,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
 
@@ -40,17 +45,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        final String jwt = authHeader.substring(7);
+        final String jwt = authHeader.substring(7).trim();
+        if (jwt.isEmpty() || "null".equalsIgnoreCase(jwt) || "undefined".equalsIgnoreCase(jwt)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         try {
             if (jwtService.isTokenValid(jwt) && SecurityContextHolder.getContext().getAuthentication() == null) {
                 String userId = jwtService.extractUserId(jwt);
                 Role role = jwtService.extractRole(jwt);
 
-                java.util.List<SimpleGrantedAuthority> authorities = new java.util.ArrayList<>();
+                List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                 authorities.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
-                if (role == Role.STUDENT) {
-                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                if (role == Role.ADMIN) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
                 }
 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -61,9 +71,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                log.debug("Authenticated user '{}' with role {} for URI {}", userId, role, request.getRequestURI());
+            } else if (!jwtService.isTokenValid(jwt)) {
+                log.warn("Invalid, expired, or untrusted JWT token for URI: {}", request.getRequestURI());
             }
-        } catch (Exception ignored) {
-            // Unauthenticated context will be rejected if route requires auth
+        } catch (Exception e) {
+            log.warn("Exception during JWT authentication for URI {}: {}", request.getRequestURI(), e.getMessage());
         }
 
         filterChain.doFilter(request, response);

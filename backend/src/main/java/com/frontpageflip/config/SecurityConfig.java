@@ -39,6 +39,9 @@ public class SecurityConfig {
                 .cors(cors -> {})
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Unconditionally permit CORS preflight OPTIONS requests across all routes
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         // Public authentication & OAuth endpoints (supports both /api/v1 and /api)
                         .requestMatchers(
                                 "/api/auth/student/login",
@@ -127,7 +130,12 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(exceptions -> exceptions
                         .defaultAuthenticationEntryPointFor(
-                                new org.springframework.security.web.authentication.HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED),
+                                (request, response, authException) -> {
+                                    response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                                    response.setContentType("application/json");
+                                    response.setCharacterEncoding("UTF-8");
+                                    response.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Please sign in to your student account to proceed.\"}");
+                                },
                                 new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/**")
                         )
                 )

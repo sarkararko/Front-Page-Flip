@@ -193,15 +193,10 @@ export const GoldenPage: React.FC<GoldenPageProps> = ({
             <span>Back to Study Materials</span>
           </button>
 
-          {isAlreadyGolden ? (
+          {isAlreadyGolden && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold shadow-xs">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               <span>Lifetime Golden Active</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs">
-              <Crown className="w-3.5 h-3.5 fill-amber-500 text-amber-600" />
-              <span>Razorpay Standard Checkout</span>
             </span>
           )}
         </div>
@@ -330,13 +325,10 @@ export const GoldenPage: React.FC<GoldenPageProps> = ({
               </button>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+            <div className="mt-4 flex items-center text-xs text-slate-500">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Secured by Razorpay Standard 256-bit SSL Checkout</span>
-              </span>
-              <span className="font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Live Secured
+                <span>Secured by Razorpay</span>
               </span>
             </div>
 

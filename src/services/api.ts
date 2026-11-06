@@ -31,8 +31,8 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     Accept: 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (token && token.trim()) {
+    headers['Authorization'] = `Bearer ${token.trim()}`;
   }
   if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
@@ -47,11 +47,12 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
       headers,
     });
     if (res.redirected && res.url.includes('/login')) {
-      throw new Error('401 Unauthorized: Session is expired or unauthorized. Please re-authenticate as administrator.');
+      throw new Error('401 Unauthorized: Session is expired or unauthorized. Please re-authenticate.');
     }
     if (!res.ok) {
       const errData = await res.json().catch(() => null);
-      throw new Error(errData?.message || `HTTP ${res.status}: ${res.statusText}`);
+      const errMsg = errData?.message || errData?.error || `HTTP ${res.status}: ${res.statusText}`;
+      throw new Error(errMsg);
     }
     const contentType = res.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -1115,8 +1116,16 @@ export const ApiService = {
   async createRazorpayOrder(amount: number = 14900): Promise<{ order_id: string; amount: number; currency: string; key_id?: string }> {
     const user = StorageService.getCurrentUser();
     const token = StorageService.getSessionToken();
-    if (!token && !user) {
+    if (!user) {
       throw new Error('Please sign in to your student account first to purchase Lifetime Golden membership.');
+    }
+    if (!token) {
+      throw new Error('Authentication token not found. Please sign in to your student account to proceed.');
+    }
+
+    // Detect offline mock token (from local fallback when server was sleeping)
+    if (token.startsWith('jwt_student_') || token.startsWith('jwt_oauth_') || token.startsWith('jwt_admin_')) {
+      throw new Error('Your session was started in offline mode. Please sign out and sign in with your student account to enable secure payment.');
     }
 
     const res = await apiFetch<any>('/create-order', {
@@ -1125,7 +1134,10 @@ export const ApiService = {
         amount: 14900,
         currency: 'INR',
         plan: 'Lifetime Golden',
-        userId: user?.id,
+        userId: user.id,
+        userEmail: user.email,
+        email: user.email,
+        userName: user.name,
       }),
     });
 
@@ -1158,6 +1170,8 @@ export const ApiService = {
       body: JSON.stringify({
         ...payload,
         userId: payload.userId || current?.id,
+        userEmail: current?.email,
+        email: current?.email,
       }),
     });
 

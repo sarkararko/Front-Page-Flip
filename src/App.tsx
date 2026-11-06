@@ -17,6 +17,7 @@ import { AboutPage } from './components/about/AboutPage';
 import { GoldenPage } from './components/golden/GoldenPage';
 import { QuickSearchModal } from './components/common/QuickSearchModal';
 import { Logo } from './components/common/Logo';
+import { Footer } from './components/common/Footer';
 
 export default function App() {
   // Authentication session
@@ -472,51 +473,8 @@ export default function App() {
         }}
       />
 
-      {/* Footer matching Front-Page Flip Brand */}
-      <footer className="bg-white border-t border-[#E2E8F0] mt-16 py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex flex-col items-center md:items-start">
-            <Logo size="sm" showTagline={true} />
-            <p className="text-xs text-[#64748B] mt-2 font-medium text-center md:text-left">
-              The dedicated educational PDF library for university and school students.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-[#64748B] font-semibold">
-            <button type="button" onClick={() => handleNavigate('home')} className="hover:text-[#1677FF]">
-              Home
-            </button>
-            <button type="button" onClick={() => handleNavigate('browse')} className="hover:text-[#1677FF]">
-              Browse PDFs
-            </button>
-            <button type="button" onClick={() => handleNavigate('subjects')} className="hover:text-[#1677FF]">
-              Subjects
-            </button>
-            <button type="button" onClick={() => handleNavigate('my-library')} className="hover:text-[#1677FF]">
-              My Library
-            </button>
-            <button type="button" onClick={() => handleNavigate('about')} className="hover:text-[#1677FF]">
-              About
-            </button>
-            <button type="button" onClick={() => handleNavigate('golden')} className="hover:text-amber-600 font-bold text-amber-700">
-              Golden
-            </button>
-            {currentUser?.role === 'admin' && (
-              <button
-                type="button"
-                onClick={() => handleNavigate('admin')}
-                className="text-purple-600 hover:text-purple-700 font-bold"
-              >
-                Admin Panel
-              </button>
-            )}
-          </div>
-
-          <div className="text-xs text-slate-400 font-medium">
-            © {new Date().getFullYear()} Front-Page Flip. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      {/* Professional Responsive Footer matching Front-Page Flip Brand */}
+      <Footer currentUser={currentUser} onNavigate={handleNavigate} />
     </div>
   );
 }

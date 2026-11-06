@@ -24,7 +24,10 @@ public class JwtService {
     private long jwtExpirationMs;
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+        String secret = (jwtSecret != null && !jwtSecret.isBlank())
+                ? jwtSecret
+                : "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
             // Pad if short for HMAC-SHA256
             byte[] padded = new byte[32];
@@ -39,14 +42,16 @@ public class JwtService {
         claims.put("userId", user.getId());
         claims.put("name", user.getName());
         claims.put("role", user.getRole().name());
+        claims.put("email", user.getEmail());
+        claims.put("sub", user.getEmail());
         claims.put("verified", user.isEmailVerified());
 
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
         return Jwts.builder()
-                .subject(user.getEmail())
                 .claims(claims)
+                .subject(user.getEmail())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
@@ -62,16 +67,39 @@ public class JwtService {
     }
 
     public String extractEmail(String token) {
-        return extractAllClaims(token).getSubject();
+        Claims claims = extractAllClaims(token);
+        String sub = claims.getSubject();
+        if (sub != null && !sub.isBlank()) {
+            return sub;
+        }
+        Object email = claims.get("email");
+        return email != null ? String.valueOf(email) : null;
     }
 
     public String extractUserId(String token) {
-        return (String) extractAllClaims(token).get("userId");
+        Claims claims = extractAllClaims(token);
+        Object uid = claims.get("userId");
+        if (uid != null && !String.valueOf(uid).isBlank()) {
+            return String.valueOf(uid);
+        }
+        Object id = claims.get("id");
+        if (id != null && !String.valueOf(id).isBlank()) {
+            return String.valueOf(id);
+        }
+        return claims.getSubject();
     }
 
     public Role extractRole(String token) {
-        String roleStr = (String) extractAllClaims(token).get("role");
-        return Role.valueOf(roleStr);
+        try {
+            Claims claims = extractAllClaims(token);
+            Object roleStr = claims.get("role");
+            if (roleStr == null) {
+                return Role.STUDENT;
+            }
+            return Role.valueOf(String.valueOf(roleStr).trim().toUpperCase());
+        } catch (Exception e) {
+            return Role.STUDENT;
+        }
     }
 
     public boolean isTokenValid(String token) {
