@@ -1140,25 +1140,54 @@ export const ApiService = {
       throw new Error('Your session was started in offline mode. Please sign out and sign in with your student account to enable secure payment.');
     }
 
+    const orderPayload = {
+      amount: 100, // Strictly ₹1 (100 paise) for test transaction
+      currency: 'INR',
+      plan: 'Lifetime Golden',
+      userId: user.id,
+      userEmail: user.email,
+      email: user.email,
+      userName: user.name,
+    };
+
+    // Priority 1: Call current origin Express backend (/api/v1/create-order) which runs server.ts with live keys and strictly creates ₹1 (100 paise) orders
+    try {
+      const localRes = await fetch('/api/v1/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token.trim()}` } : {}),
+        },
+        body: JSON.stringify(orderPayload),
+      });
+      if (localRes.ok) {
+        const localData = await localRes.json();
+        if (localData && (localData.order_id || localData.id)) {
+          return {
+            order_id: localData.order_id || localData.id,
+            amount: 100, // strictly 100 paise (₹1)
+            currency: localData.currency || 'INR',
+            key_id: localData.key_id || 'rzp_live_TwReofbXIfEGXk',
+          };
+        }
+      }
+    } catch {
+      // Fallback to apiFetch below if local route is unavailable
+    }
+
+    // Priority 2: Backend apiFetch
     const res = await apiFetch<any>('/create-order', {
       method: 'POST',
-      body: JSON.stringify({
-        amount: 100,
-        currency: 'INR',
-        plan: 'Lifetime Golden',
-        userId: user.id,
-        userEmail: user.email,
-        email: user.email,
-        userName: user.name,
-      }),
+      body: JSON.stringify(orderPayload),
     });
 
     if (res && (res.order_id || res.id)) {
       return {
         order_id: res.order_id || res.id,
-        amount: res.amount || 100,
+        amount: 100, // strictly 100 paise (₹1)
         currency: res.currency || 'INR',
-        key_id: res.key_id,
+        key_id: res.key_id || 'rzp_live_TwReofbXIfEGXk',
       };
     }
 
@@ -1177,14 +1206,48 @@ export const ApiService = {
       throw new Error('Please sign in to verify your payment.');
     }
 
+    const verifyPayload = {
+      ...payload,
+      userId: payload.userId || current?.id,
+      userEmail: current?.email,
+      email: current?.email,
+    };
+
+    // Priority 1: Call current origin Express backend (/api/v1/verify-payment)
+    try {
+      const localRes = await fetch('/api/v1/verify-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token.trim()}` } : {}),
+        },
+        body: JSON.stringify(verifyPayload),
+      });
+      if (localRes.ok) {
+        const localData = await localRes.json();
+        if (localData && (localData.success || localData.verified)) {
+          if (current) {
+            current.isGolden = true;
+            current.goldenPlan = 'Lifetime Golden';
+            current.paymentStatus = 'COMPLETED';
+            StorageService.updateUser(current);
+            StorageService.setCurrentUser(current);
+          }
+          return {
+            success: true,
+            verified: true,
+            message: localData.message || 'Payment verified successfully! Golden membership is now unlocked.',
+          };
+        }
+      }
+    } catch {
+      // fallback to apiFetch
+    }
+
     const result = await apiFetch<any>('/verify-payment', {
       method: 'POST',
-      body: JSON.stringify({
-        ...payload,
-        userId: payload.userId || current?.id,
-        userEmail: current?.email,
-        email: current?.email,
-      }),
+      body: JSON.stringify(verifyPayload),
     });
 
     if (result && result.success) {

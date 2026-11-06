@@ -12,8 +12,14 @@ dotenv.config({ override: true });
 const app = express();
 app.use(express.json());
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_live_TwReofbXIfEGXk';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'ipp92NPh5OIoyX9bWr9qmRlF';
+const RAZORPAY_KEY_ID =
+  process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID !== 'rzp_test_TwQeY3q2SKyMCY'
+    ? process.env.RAZORPAY_KEY_ID
+    : 'rzp_live_TwReofbXIfEGXk';
+const RAZORPAY_KEY_SECRET =
+  process.env.RAZORPAY_KEY_SECRET && process.env.RAZORPAY_KEY_SECRET !== 'OkRPe0KeGpoqRbDM1rRB5mLk'
+    ? process.env.RAZORPAY_KEY_SECRET
+    : 'ipp92NPh5OIoyX9bWr9qmRlF';
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 
 // Initialize Razorpay SDK instance

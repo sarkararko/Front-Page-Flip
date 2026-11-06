@@ -104,7 +104,7 @@ export const GoldenPage: React.FC<GoldenPageProps> = ({
       // 3. Open Razorpay Standard Checkout Modal
       const options = {
         key: keyId,
-        amount: orderData.amount, // in paise
+        amount: 100, // Strictly 100 paise = ₹1.00 test transaction
         currency: orderData.currency || 'INR',
         name: 'Front-Page Flip',
         description: 'Lifetime Golden — Unlock All PDF Downloads',
