@@ -32,7 +32,7 @@ import java.util.Map;
 public class GoldenController {
 
     private static final Logger log = LoggerFactory.getLogger(GoldenController.class);
-    private static final int GOLDEN_PRICE_PAISE = 100; // Exactly ₹1 one-time lifetime (100 paise)
+    private static final int GOLDEN_PRICE_PAISE = 14900; // Exactly ₹149 one-time lifetime
 
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
@@ -66,7 +66,7 @@ public class GoldenController {
         resp.put("isGolden", user != null && user.isGolden());
         resp.put("goldenPlan", (user != null && user.getGoldenPlan() != null) ? user.getGoldenPlan() : "Lifetime Golden");
         resp.put("paymentStatus", user != null ? user.getPaymentStatus() : "NONE");
-        resp.put("price", 1);
+        resp.put("price", 149);
         resp.put("priceInPaise", GOLDEN_PRICE_PAISE);
         resp.put("currency", "INR");
         resp.put("key_id", razorpayKeyId);
@@ -79,7 +79,7 @@ public class GoldenController {
      * STEP 1: BACKEND - Create Order
      * Endpoint: POST /api/v1/create-order, /api/create-order, /api/v1/golden/create-order
      * Requires authenticated student via JWT.
-     * Server-side strictly enforces ₹1 (100 paise) and INR currency.
+     * Server-side strictly enforces ₹149 (14900 paise) and INR currency.
      */
     @PostMapping({"/create-order", "/golden/create-order"})
     public ResponseEntity<?> createOrder(
@@ -134,7 +134,7 @@ public class GoldenController {
         }
 
         try {
-            // Enforce price server-side: ₹1 one-time (100 paise)
+            // Enforce price server-side: ₹149 one-time (14900 paise)
             int amount = GOLDEN_PRICE_PAISE;
             String currency = "INR";
             // Receipt ID: Razorpay requires max 40 characters
