@@ -94,6 +94,23 @@ public class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("Registration rejects existing email address without dispatching verification code")
+    void testRegisterStudentRejectsExistingEmail() {
+        RegisterRequest request = new RegisterRequest();
+        request.setName("Rohan Sharma");
+        request.setEmail("existing@university.edu");
+        request.setPassword("StrongPass123!");
+
+        User existing = new User("usr-existing", "Existing User", "existing@university.edu", Role.STUDENT);
+        when(userRepository.findByEmailIgnoreCase("existing@university.edu")).thenReturn(Optional.of(existing));
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> authService.registerStudent(request));
+        assertEquals("An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account.", ex.getMessage());
+        verify(emailService, never()).sendVerificationEmail(anyString(), anyString(), anyString());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
     @DisplayName("Unverified student cannot log in until email is verified")
     void testUnverifiedStudentCannotLogin() {
         LoginRequest request = new LoginRequest();

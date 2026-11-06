@@ -289,6 +289,18 @@ export const ApiService = {
   ): Promise<{ user: User; requiresVerification: boolean; verificationCode?: string; message?: string }> {
     const cleanEmail = email.toLowerCase().trim();
 
+    // Scenario C: Already authenticated user protection
+    const currentUser = StorageService.getCurrentUser();
+    if (currentUser) {
+      throw new Error(`You are already signed in as ${currentUser.name} (${currentUser.email}). Please sign out first to register a new account.`);
+    }
+
+    // Check existing local storage to prevent duplicate registration
+    const existingLocalUser = StorageService.getUserByEmail(cleanEmail);
+    if (existingLocalUser) {
+      throw new Error('An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account.');
+    }
+
     // Attempt real backend call first
     try {
       const backendRes = await apiFetch<any>('/auth/student/register', {
@@ -1103,17 +1115,17 @@ export const ApiService = {
     return {
       isGolden: user?.isGolden || false,
       goldenPlan: user?.goldenPlan || 'Lifetime Golden',
-      price: 149,
+      price: 1,
       currency: 'INR',
       message: 'Unlock PDF downloads for all study materials, permanently.',
     };
   },
 
-  async createGoldenOrder(amount: number = 14900): Promise<{ order_id: string; amount: number; currency: string; key_id?: string }> {
+  async createGoldenOrder(amount: number = 100): Promise<{ order_id: string; amount: number; currency: string; key_id?: string }> {
     return this.createRazorpayOrder(amount);
   },
 
-  async createRazorpayOrder(amount: number = 14900): Promise<{ order_id: string; amount: number; currency: string; key_id?: string }> {
+  async createRazorpayOrder(amount: number = 100): Promise<{ order_id: string; amount: number; currency: string; key_id?: string }> {
     const user = StorageService.getCurrentUser();
     const token = StorageService.getSessionToken();
     if (!user) {
@@ -1131,7 +1143,7 @@ export const ApiService = {
     const res = await apiFetch<any>('/create-order', {
       method: 'POST',
       body: JSON.stringify({
-        amount: 14900,
+        amount: 100,
         currency: 'INR',
         plan: 'Lifetime Golden',
         userId: user.id,
@@ -1144,7 +1156,7 @@ export const ApiService = {
     if (res && (res.order_id || res.id)) {
       return {
         order_id: res.order_id || res.id,
-        amount: res.amount || 14900,
+        amount: res.amount || 100,
         currency: res.currency || 'INR',
         key_id: res.key_id,
       };

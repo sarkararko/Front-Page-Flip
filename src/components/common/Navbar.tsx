@@ -337,7 +337,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           </div>
                         </div>
                         <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-xs">
-                          {currentUser.isGolden ? 'Active' : '₹149'}
+                          {currentUser.isGolden ? 'Active' : '₹1'}
                         </span>
                       </button>
 
@@ -492,7 +492,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>Front-Page Flip Golden</span>
                 </span>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-2xs">
-                  {currentUser?.isGolden ? 'Active' : '₹149 Lifetime'}
+                  {currentUser?.isGolden ? 'Active' : '₹1 Lifetime'}
                 </span>
               </button>
             </div>

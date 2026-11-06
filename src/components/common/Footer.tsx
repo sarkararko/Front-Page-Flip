@@ -354,7 +354,7 @@ export const Footer: React.FC<FooterProps> = ({ currentUser, onNavigate }) => {
                     <div className="p-3 bg-amber-50/70 border border-amber-100 rounded-xl">
                       <h4 className="font-bold text-[#102A56] mb-1">3. Lifetime Golden Membership</h4>
                       <p className="text-xs">
-                        Upgrade anytime for ₹149 one-time to unlock unlimited offline PDF downloads for all current and future educational materials.
+                        Upgrade anytime for ₹1 one-time to unlock unlimited offline PDF downloads for all current and future educational materials.
                       </p>
                     </div>
                   </div>
@@ -364,7 +364,7 @@ export const Footer: React.FC<FooterProps> = ({ currentUser, onNavigate }) => {
               {activeModal === 'refund-policy' && (
                 <>
                   <p>
-                    We offer a single, transparent digital membership: <strong className="text-slate-800">Lifetime Golden Membership</strong> priced at a one-time payment of <strong className="text-slate-800">₹149</strong>.
+                    We offer a single, transparent digital membership: <strong className="text-slate-800">Lifetime Golden Membership</strong> priced at a one-time payment of <strong className="text-slate-800">₹1</strong>.
                   </p>
                   <ul className="list-disc pl-5 space-y-1.5 text-xs">
                     <li>

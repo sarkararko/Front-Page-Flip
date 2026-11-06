@@ -39,7 +39,7 @@ try {
 // Call Razorpay API: POST https://api.razorpay.com/v1/orders
 // Request: { amount (paise), currency, receipt }
 // Return: { order_id, amount, currency, key_id }
-// Strictly enforces ₹149 (14900 paise) server-side
+// Strictly enforces ₹1 (100 paise) server-side
 // ============================================================================
 const handleCreateOrder = async (req: Request, res: Response) => {
   try {
@@ -49,8 +49,8 @@ const handleCreateOrder = async (req: Request, res: Response) => {
       });
     }
 
-    // Strictly enforce ₹149 (14900 paise) for Lifetime Golden
-    const amount = 14900;
+    // Strictly enforce ₹1 (100 paise) for Lifetime Golden
+    const amount = 100;
     const currency = 'INR';
     const receipt = req.body.receipt || `gld_rcpt_${Date.now()}`;
 
@@ -201,8 +201,8 @@ app.post('/api/v1/webhook/razorpay', handleWebhook);
 app.get(['/api/golden/status', '/api/v1/golden/status', '/api/status', '/api/v1/status'], (req, res) => {
   res.json({
     available: true,
-    price: 149,
-    priceInPaise: 14900,
+    price: 1,
+    priceInPaise: 100,
     currency: 'INR',
     key_id: RAZORPAY_KEY_ID,
     package: 'Lifetime Golden',

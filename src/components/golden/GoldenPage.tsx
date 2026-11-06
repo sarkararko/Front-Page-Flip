@@ -90,8 +90,8 @@ export const GoldenPage: React.FC<GoldenPageProps> = ({
         throw new Error('Unable to load Razorpay payment SDK. Please verify your internet connection and try again.');
       }
 
-      // 2. Call backend endpoint to create order (amount: 14900 paise = ₹149)
-      const orderData = await ApiService.createRazorpayOrder(14900);
+      // 2. Call backend endpoint to create order (amount: 100 paise = ₹1)
+      const orderData = await ApiService.createRazorpayOrder(100);
       if (!orderData || !orderData.order_id) {
         throw new Error('Could not generate Razorpay order. Please try again.');
       }
@@ -253,7 +253,7 @@ export const GoldenPage: React.FC<GoldenPageProps> = ({
                   One-Time Payment
                 </div>
                 <div className="flex items-baseline gap-1 mt-1">
-                  <span className="text-4xl sm:text-5xl font-black text-slate-900">₹149</span>
+                  <span className="text-4xl sm:text-5xl font-black text-slate-900">₹1</span>
                   <span className="text-xs sm:text-sm font-semibold text-slate-500">only</span>
                 </div>
                 <div className="text-[11px] font-bold text-amber-700 mt-1 flex items-center md:justify-end gap-1">
@@ -310,7 +310,7 @@ export const GoldenPage: React.FC<GoldenPageProps> = ({
                   ) : (
                     <>
                       <Crown className="w-5 h-5 fill-slate-950 text-slate-950" />
-                      <span>Buy Golden — ₹149</span>
+                      <span>Buy Golden — ₹1</span>
                     </>
                   )}
                 </button>

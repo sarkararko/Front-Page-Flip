@@ -74,34 +74,10 @@ public class AuthService {
             throw new BadRequestException("This email address is reserved for system administration.");
         }
 
+        // Check if an account with this email address already exists in the database
         Optional<User> existingUserOpt = userRepository.findByEmailIgnoreCase(normalizedEmail);
         if (existingUserOpt.isPresent()) {
-            User existing = existingUserOpt.get();
-            if (existing.isEmailVerified()) {
-                // Generic response to avoid email enumeration
-                return new AuthResponse(null, null,
-                        "If this email is eligible, account verification instructions have been dispatched. Please check your inbox.",
-                        true);
-            } else {
-                // Existing unverified student: update name/password and send fresh OTP
-                existing.setName(request.getName().trim());
-                existing.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-                existing.setLastVerificationSentAt(Instant.now());
-                User saved = userRepository.save(existing);
-
-                String code = generateNumericOtp(6);
-                saveVerificationToken(saved, code, 24, ChronoUnit.HOURS);
-                boolean sent = emailService.sendVerificationEmail(saved.getEmail(), saved.getName(), code);
-                if (!sent) {
-                    String detail = emailService.getLastErrorMessage();
-                    throw new BadRequestException("Verification email delivery failed via Brevo" +
-                            (detail != null && !detail.isBlank() ? ": " + detail : ". Please check your email configuration and retry."));
-                }
-
-                return new AuthResponse(null, toUserDto(saved),
-                        "A new 6-digit verification code has been dispatched to your email address.",
-                        true);
-            }
+            throw new BadRequestException("An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account.");
         }
 
         User user = new User();
@@ -115,7 +91,12 @@ public class AuthService {
         user.setProvider("email");
         user.setLastVerificationSentAt(Instant.now());
 
-        User savedUser = userRepository.save(user);
+        User savedUser;
+        try {
+            savedUser = userRepository.save(user);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new BadRequestException("An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account.");
+        }
 
         // Generate 6-digit numeric OTP verification code
         String code = generateNumericOtp(6);

@@ -30,6 +30,8 @@ type RoleTab = 'student' | 'admin';
 type StudentMode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => StorageService.getCurrentUser());
+
   // Option A (Student) vs Option B (Admin)
   const [activeRole, setActiveRole] = useState<RoleTab>('student');
   const [studentMode, setStudentMode] = useState<StudentMode>('login');
@@ -166,6 +168,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
   // 3. Student Registration
   const handleStudentRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (currentUser) {
+      setError(`You are already signed in as ${currentUser.name} (${currentUser.email}). Please sign out first to create a new account.`);
+      return;
+    }
+
     if (!fullName.trim() || !studentEmail.trim() || !studentPassword.trim()) {
       setError('Please fill out all required fields.');
       return;
@@ -300,8 +308,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
   // 7. Reset Password
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetToken.trim()) {
+    const cleanToken = resetToken.trim();
+    if (!cleanToken) {
       setError('Please enter the 6-digit recovery code from your email.');
+      return;
+    }
+    if (cleanToken.length !== 6 || !/^\d{6}$/.test(cleanToken)) {
+      setError('Please enter a valid 6-digit recovery code.');
       return;
     }
     if (newPassword.length < 6) {
@@ -315,7 +328,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
     try {
       setLoading(true);
       setError(null);
-      const res = await ApiService.resetPassword(pendingEmail.trim(), resetToken.trim(), newPassword);
+      const res = await ApiService.resetPassword(pendingEmail.trim(), cleanToken, newPassword);
       setSuccessMessage(res.message);
       setStudentEmail(pendingEmail);
       setStudentPassword('');
@@ -399,11 +412,87 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
               </button>
             </div>
 
+            {/* Already Authenticated Active Session Warning (Scenario C) */}
+            {currentUser && studentMode === 'register' && (
+              <div className="mb-2.5 p-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-[#102A56]">
+                  <CheckCircle2 className="w-4 h-4 text-[#1677FF] shrink-0" />
+                  <span>Already Signed In</span>
+                </div>
+                <p className="text-[#334155] leading-relaxed">
+                  You are already signed in as <strong className="font-semibold text-[#102A56]">{currentUser.name}</strong> ({currentUser.email}).
+                </p>
+                <div className="flex items-center gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => onSuccess(currentUser)}
+                    className="px-2.5 py-1 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-semibold rounded-lg text-xs transition cursor-pointer"
+                  >
+                    Continue to Library
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await ApiService.logout();
+                      setCurrentUser(null);
+                      setSuccessMessage('Signed out successfully. You can now register a new account.');
+                      setError(null);
+                    }}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold rounded-lg text-xs transition cursor-pointer"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Error or Success Feedback Banners */}
             {error && (
-              <div className="mb-2.5 p-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-                <span className="leading-snug">{error}</span>
+              <div
+                className={`mb-2.5 p-3 rounded-xl text-xs font-medium border ${
+                  error.toLowerCase().includes('already exists')
+                    ? 'bg-amber-50 border-amber-300 text-amber-900'
+                    : 'bg-red-50 border-red-200 text-red-700'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <AlertCircle
+                    className={`w-4 h-4 shrink-0 mt-0.5 ${
+                      error.toLowerCase().includes('already exists') ? 'text-amber-600' : 'text-red-500'
+                    }`}
+                  />
+                  <div className="space-y-2 flex-1">
+                    <p className="leading-snug">{error}</p>
+                    {error.toLowerCase().includes('already exists') && (
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setError(null);
+                            setSuccessMessage(null);
+                            setStudentEmail(studentEmail.trim());
+                            setStudentMode('login');
+                          }}
+                          className="px-2.5 py-1 bg-[#1677FF] hover:bg-[#0E63DC] text-white font-semibold rounded-lg text-xs transition cursor-pointer"
+                        >
+                          Sign In
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setError(null);
+                            setSuccessMessage(null);
+                            setPendingEmail(studentEmail.trim());
+                            setStudentMode('forgot');
+                          }}
+                          className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold rounded-lg text-xs transition cursor-pointer"
+                        >
+                          Forgot Password
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -863,17 +952,42 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                       <p className="text-xs text-[#64748B] mt-0.5">Enter the code from your email</p>
                     </div>
 
+                    {/* Hidden username to explicitly prevent browser password managers from autofilling account names into the recovery code */}
+                    <input
+                      type="text"
+                      name="username"
+                      value={pendingEmail}
+                      readOnly
+                      tabIndex={-1}
+                      autoComplete="username"
+                      className="sr-only hidden"
+                      aria-hidden="true"
+                    />
+
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">6-Digit Recovery Code</label>
+                      <label htmlFor="fpf-recovery-code" className="block text-xs font-semibold text-slate-700 mb-1">
+                        6-Digit Recovery Code
+                      </label>
                       <div className="relative">
                         <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
+                          id="fpf-recovery-code"
+                          name="fpfRecoveryCode"
                           type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck={false}
                           required
                           maxLength={6}
+                          pattern="[0-9]{6}"
                           value={resetToken}
-                          onChange={(e) => setResetToken(e.target.value)}
-                          placeholder="e.g. 582910"
+                          onChange={(e) => {
+                            const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 6);
+                            setResetToken(digitsOnly);
+                          }}
+                          placeholder="Enter 6-digit recovery code"
                           className="w-full pl-9 pr-3 py-2 text-xs sm:text-[13px] bg-white border border-slate-200 rounded-xl focus:border-[#1677FF] outline-hidden font-mono font-bold tracking-wider"
                         />
                       </div>
