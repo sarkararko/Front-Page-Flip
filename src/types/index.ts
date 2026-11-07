@@ -15,6 +15,8 @@ export interface User {
   paymentStatus?: string;
 }
 
+export type EducationalCategory = 'SCHOOL' | 'COLLEGE';
+
 export interface Subject {
   id: string;
   name: string;
@@ -26,6 +28,7 @@ export interface Subject {
   description?: string;
   topics?: string[];
   createdAt: string;
+  educationalCategory?: EducationalCategory;
 }
 
 export interface PdfResource {
@@ -42,6 +45,7 @@ export interface PdfResource {
   uploadDate: string; // e.g. "2026-10-10"
   isPublished: boolean;
   downloadAllowed: boolean;
+  educationalCategory?: EducationalCategory;
   thumbnailStyle?: 'dark-notebook' | 'lecture-sheet' | 'green-board' | 'circuit-dark' | 'standard';
   thumbnailUrl?: string; // Optional custom thumbnail image (JPG, PNG, WEBP)
   cloudinarySecureUrl?: string;

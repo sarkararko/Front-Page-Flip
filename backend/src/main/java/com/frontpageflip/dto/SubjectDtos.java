@@ -20,6 +20,7 @@ public class SubjectDtos {
         private String icon = "sigma";
         private String iconColor = "#1677FF";
         private String iconBgColor = "#EFF6FF";
+        private String educationalCategory = "COLLEGE";
 
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
@@ -38,6 +39,9 @@ public class SubjectDtos {
 
         public String getIconBgColor() { return iconBgColor; }
         public void setIconBgColor(String iconBgColor) { this.iconBgColor = iconBgColor; }
+
+        public String getEducationalCategory() { return educationalCategory; }
+        public void setEducationalCategory(String educationalCategory) { this.educationalCategory = educationalCategory; }
     }
 
     public static class SubjectResponse {
@@ -48,6 +52,7 @@ public class SubjectDtos {
         private String icon;
         private String iconColor;
         private String iconBgColor;
+        private String educationalCategory = "COLLEGE";
         private long pdfCount;
         private boolean isFavorite;
 
@@ -61,6 +66,19 @@ public class SubjectDtos {
             this.icon = icon;
             this.iconColor = iconColor;
             this.iconBgColor = iconBgColor;
+            this.pdfCount = pdfCount;
+            this.educationalCategory = "COLLEGE";
+        }
+
+        public SubjectResponse(String id, String name, String slug, String description, String icon, String iconColor, String iconBgColor, String educationalCategory, long pdfCount) {
+            this.id = id;
+            this.name = name;
+            this.slug = slug;
+            this.description = description;
+            this.icon = icon;
+            this.iconColor = iconColor;
+            this.iconBgColor = iconBgColor;
+            this.educationalCategory = educationalCategory != null ? educationalCategory : "COLLEGE";
             this.pdfCount = pdfCount;
         }
 
@@ -84,6 +102,9 @@ public class SubjectDtos {
 
         public String getIconBgColor() { return iconBgColor; }
         public void setIconBgColor(String iconBgColor) { this.iconBgColor = iconBgColor; }
+
+        public String getEducationalCategory() { return educationalCategory; }
+        public void setEducationalCategory(String educationalCategory) { this.educationalCategory = educationalCategory; }
 
         public long getPdfCount() { return pdfCount; }
         public void setPdfCount(long pdfCount) { this.pdfCount = pdfCount; }

@@ -197,4 +197,48 @@ public class SubjectPdfServiceTest {
         // Crucial requirement: database record is NOT deleted on Cloudinary failure
         verify(pdfRepository, never()).delete(any(PdfDocument.class));
     }
+
+    @Test
+    @DisplayName("Admin can create School subject and category is preserved")
+    void testCreateSchoolSubjectSuccess() {
+        SubjectRequest request = new SubjectRequest();
+        request.setName("Class 10 Physics");
+        request.setDescription("Motion, Force, Gravitation, Electricity");
+        request.setEducationalCategory("SCHOOL");
+
+        User admin = new User();
+        admin.setId("usr-admin");
+        admin.setRole(Role.ADMIN);
+
+        when(subjectRepository.existsBySlug("class-10-physics")).thenReturn(false);
+        when(userRepository.findById("usr-admin")).thenReturn(Optional.of(admin));
+        when(subjectRepository.save(any(Subject.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SubjectResponse response = subjectService.createSubject(request, "usr-admin");
+
+        assertNotNull(response);
+        assertEquals("Class 10 Physics", response.getName());
+        assertEquals("SCHOOL", response.getEducationalCategory());
+        verify(subjectRepository, times(1)).save(any(Subject.class));
+    }
+
+    @Test
+    @DisplayName("Admin can edit subject to change category from School to College or vice versa")
+    void testUpdateSubjectEducationalCategory() {
+        Subject existing = new Subject("sub_1", "Mathematics", "mathematics", "Desc");
+        existing.setEducationalCategory("SCHOOL");
+
+        when(subjectRepository.findById("sub_1")).thenReturn(Optional.of(existing));
+        when(subjectRepository.save(any(Subject.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SubjectRequest updateReq = new SubjectRequest();
+        updateReq.setName("Mathematics");
+        updateReq.setEducationalCategory("COLLEGE");
+
+        SubjectResponse response = subjectService.updateSubject("sub_1", updateReq, "usr-admin");
+
+        assertNotNull(response);
+        assertEquals("COLLEGE", response.getEducationalCategory());
+        verify(subjectRepository, times(1)).save(existing);
+    }
 }

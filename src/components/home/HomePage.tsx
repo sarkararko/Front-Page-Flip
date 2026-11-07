@@ -59,10 +59,14 @@ export const HomePage: React.FC<HomePageProps> = ({
   // Admin Edit Subject Modal state
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState<'SCHOOL' | 'COLLEGE'>('COLLEGE');
   const [editIcon, setEditIcon] = useState('sigma');
   const [editColor, setEditColor] = useState('#1677FF');
   const [editDescription, setEditDescription] = useState('');
   const [isSavingSubject, setIsSavingSubject] = useState(false);
+
+  // Category switch tabs state: 'SCHOOL' | 'COLLEGE'
+  const [selectedCategory, setSelectedCategory] = useState<'SCHOOL' | 'COLLEGE'>('COLLEGE');
 
   // Admin Delete Subject Modal state
   const [deletingSubject, setDeletingSubject] = useState<Subject | null>(null);
@@ -81,6 +85,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   const handleOpenEditSubject = (subj: Subject) => {
     setEditingSubject(subj);
     setEditName(subj.name);
+    setEditCategory(subj.educationalCategory === 'SCHOOL' ? 'SCHOOL' : 'COLLEGE');
     setEditIcon(subj.icon || 'sigma');
     setEditColor(subj.iconColor || '#1677FF');
     setEditDescription(subj.description || '');
@@ -104,6 +109,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         icon: editIcon,
         iconColor: editColor,
         description: editDescription.trim(),
+        educationalCategory: editCategory,
       });
       showToast('success', `Subject "${editName}" updated successfully.`);
       setEditingSubject(null);
@@ -148,8 +154,13 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
   };
 
-  // Show top 8 subjects for the 4x2 grid matching fpf inside interface.png
-  const displayedSubjects = subjects.slice(0, 8);
+  // Separate subjects into School and College categories
+  const schoolSubjects = subjects.filter((s) => s.educationalCategory === 'SCHOOL');
+  const collegeSubjects = subjects.filter((s) => s.educationalCategory !== 'SCHOOL');
+
+  // Active category subjects based on selected tab ('SCHOOL' or 'COLLEGE')
+  const activeCategorySubjects = selectedCategory === 'SCHOOL' ? schoolSubjects : collegeSubjects;
+  const displayedSubjects = activeCategorySubjects.slice(0, 8);
 
   // Show top 4 recently added PDFs matching fpf inside interface.png
   const displayedPdfs = recentlyAddedPdfs.slice(0, 4);
@@ -189,24 +200,86 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       {/* 2. Explore Subjects Section */}
       <section className="mb-12">
-        <div className="flex items-end justify-between mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-[#102A56] tracking-tight">
               Explore Subjects
             </h2>
             <p className="text-xs sm:text-sm text-[#64748B] mt-0.5 font-medium">
-              Browse by subject and find the notes you need.
+              Browse by educational category and find the notes you need.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={onViewAllSubjects}
-            className="text-xs sm:text-sm font-bold text-[#1677FF] hover:text-[#0E63DC] flex items-center gap-1 transition-colors group cursor-pointer"
-          >
-            <span>View All</span>
-            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Category Selection Tabs: Schools & Colleges */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('SCHOOL')}
+                className={`px-3.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedCategory === 'SCHOOL'
+                    ? 'bg-white text-[#102A56] shadow-xs'
+                    : 'text-slate-600 hover:text-[#102A56]'
+                }`}
+              >
+                <span>Schools</span>
+                <span
+                  className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                    selectedCategory === 'SCHOOL'
+                      ? 'bg-blue-100 text-[#1677FF]'
+                      : 'bg-slate-200/70 text-slate-500'
+                  }`}
+                >
+                  {schoolSubjects.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('COLLEGE')}
+                className={`px-3.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedCategory === 'COLLEGE'
+                    ? 'bg-white text-[#102A56] shadow-xs'
+                    : 'text-slate-600 hover:text-[#102A56]'
+                }`}
+              >
+                <span>Colleges</span>
+                <span
+                  className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                    selectedCategory === 'COLLEGE'
+                      ? 'bg-blue-100 text-[#1677FF]'
+                      : 'bg-slate-200/70 text-slate-500'
+                  }`}
+                >
+                  {collegeSubjects.length}
+                </span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={onViewAllSubjects}
+              className="text-xs sm:text-sm font-bold text-[#1677FF] hover:text-[#0E63DC] flex items-center gap-1 transition-colors group cursor-pointer ml-1"
+            >
+              <span>View All</span>
+              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+            </button>
+          </div>
+        </div>
+
+        {/* Clear Sub-heading for Active Educational Category */}
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200/70">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base sm:text-lg font-bold text-[#102A56]">
+              {selectedCategory === 'SCHOOL' ? 'Schools' : 'Colleges'}
+            </h3>
+            <span className="text-xs text-slate-500 font-medium">
+              — {selectedCategory === 'SCHOOL' ? 'School curriculum and foundational subjects' : 'University and college degree courses'}
+            </span>
+          </div>
+          <span className="text-xs text-slate-400 font-semibold">
+            {activeCategorySubjects.length} {activeCategorySubjects.length === 1 ? 'subject' : 'subjects'}
+          </span>
         </div>
 
         {/* 4x2 Grid of Subject Cards */}
@@ -231,12 +304,12 @@ export const HomePage: React.FC<HomePageProps> = ({
               <BookOpen className="w-7 h-7 text-[#1677FF]" />
             </div>
             <h3 className="text-base sm:text-lg font-bold text-[#102A56]">
-              No subjects available yet
+              {selectedCategory === 'SCHOOL' ? 'No school subjects available yet' : 'No college subjects available yet'}
             </h3>
             <p className="text-xs sm:text-sm text-[#64748B] mt-1.5 max-w-md mx-auto font-medium">
               {isAdmin
-                ? 'No subjects have been created yet. Create the first academic subject to begin organizing educational resources.'
-                : 'Educational subjects will appear here once created and published by an administrator.'}
+                ? `No subjects have been created in the ${selectedCategory === 'SCHOOL' ? 'School' : 'College'} category yet. Click below to add your first ${selectedCategory === 'SCHOOL' ? 'school' : 'college'} subject.`
+                : `Educational subjects for ${selectedCategory === 'SCHOOL' ? 'schools' : 'colleges'} will appear here once created and published by an administrator.`}
             </p>
             {isAdmin && onGoToAdmin && (
               <button
@@ -245,7 +318,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#1677FF] hover:bg-[#0E63DC] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
               >
                 <Plus className="w-4 h-4" />
-                <span>Create First Subject</span>
+                <span>Create {selectedCategory === 'SCHOOL' ? 'School' : 'College'} Subject</span>
               </button>
             )}
           </div>
@@ -339,6 +412,26 @@ export const HomePage: React.FC<HomePageProps> = ({
                   placeholder="e.g. Data Structures & Algorithms"
                   className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF]"
                 />
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#102A56] mb-1">
+                  Educational Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value as 'SCHOOL' | 'COLLEGE')}
+                  className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF] text-[#102A56]"
+                >
+                  <option value="SCHOOL">School</option>
+                  <option value="COLLEGE">College</option>
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                  {editCategory === 'SCHOOL'
+                    ? 'Subject and its associated PDFs will move to the Schools section.'
+                    : 'Subject and its associated PDFs will move to the Colleges section.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

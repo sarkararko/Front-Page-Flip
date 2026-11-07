@@ -29,6 +29,9 @@ public class Subject {
     @Column(name = "icon_bg_color", length = 32)
     private String iconBgColor = "#EFF6FF";
 
+    @Column(name = "educational_category", length = 32, nullable = false)
+    private String educationalCategory = "COLLEGE";
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
@@ -73,6 +76,9 @@ public class Subject {
 
     public String getIconBgColor() { return iconBgColor; }
     public void setIconBgColor(String iconBgColor) { this.iconBgColor = iconBgColor; }
+
+    public String getEducationalCategory() { return educationalCategory; }
+    public void setEducationalCategory(String educationalCategory) { this.educationalCategory = educationalCategory; }
 
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }

@@ -1,4 +1,4 @@
-import { User, Subject, PdfResource, RecentlyViewedItem } from '../types';
+import { User, Subject, PdfResource, RecentlyViewedItem, EducationalCategory } from '../types';
 
 const USERS_STORAGE_KEY = 'fpf_users_v2';
 const CURRENT_USER_KEY = 'fpf_current_user_v2';
@@ -170,7 +170,11 @@ export const StorageService = {
             (p.subjectName && p.subjectName.trim().toLowerCase() === s.name.trim().toLowerCase())) &&
           p.isPublished
       ).length;
-      return { ...s, pdfCount: realCount };
+      return {
+        ...s,
+        educationalCategory: (s.educationalCategory === 'SCHOOL' ? 'SCHOOL' : 'COLLEGE') as EducationalCategory,
+        pdfCount: realCount,
+      };
     });
 
     return mapped;
@@ -183,10 +187,14 @@ export const StorageService = {
   saveSubject(subject: Subject): void {
     const subjects = this.getSubjects();
     const existingIndex = subjects.findIndex((s) => s.id === subject.id);
+    const normalized: Subject = {
+      ...subject,
+      educationalCategory: (subject.educationalCategory === 'SCHOOL' ? 'SCHOOL' : 'COLLEGE') as EducationalCategory,
+    };
     if (existingIndex >= 0) {
-      subjects[existingIndex] = subject;
+      subjects[existingIndex] = normalized;
     } else {
-      subjects.push(subject);
+      subjects.push(normalized);
     }
     writeToStorage(SUBJECTS_STORAGE_KEY, subjects);
   },
@@ -203,7 +211,20 @@ export const StorageService = {
 
   // --- PDFS (Genuine Database Storage) ---
   getPdfs(): PdfResource[] {
-    return readFromStorage<PdfResource[]>(PDFS_STORAGE_KEY, INITIAL_PDFS);
+    const pdfs = readFromStorage<PdfResource[]>(PDFS_STORAGE_KEY, INITIAL_PDFS);
+    const subjects = readFromStorage<Subject[]>(SUBJECTS_STORAGE_KEY, []);
+    return pdfs.map((p) => {
+      const targetSub = subjects.find(
+        (s) =>
+          s.id === p.subjectId ||
+          s.slug === p.subjectId ||
+          (p.subjectName && s.name.trim().toLowerCase() === p.subjectName.trim().toLowerCase())
+      );
+      return {
+        ...p,
+        educationalCategory: targetSub?.educationalCategory || p.educationalCategory || 'COLLEGE',
+      };
+    });
   },
 
   getPdfById(id: string): PdfResource | undefined {

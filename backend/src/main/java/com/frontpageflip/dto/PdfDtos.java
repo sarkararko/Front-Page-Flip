@@ -74,6 +74,7 @@ public class PdfDtos {
         private String cloudinaryPublicId;
         private String cloudinarySecureUrl;
         private String thumbnailUrl;
+        private String educationalCategory = "COLLEGE";
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -140,5 +141,8 @@ public class PdfDtos {
 
         public String getThumbnailUrl() { return thumbnailUrl; }
         public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
+
+        public String getEducationalCategory() { return educationalCategory; }
+        public void setEducationalCategory(String educationalCategory) { this.educationalCategory = educationalCategory; }
     }
 }

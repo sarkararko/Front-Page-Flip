@@ -29,11 +29,13 @@ export const AllSubjectsPage: React.FC<AllSubjectsPageProps> = ({
   onSelectSubject,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<'ALL' | 'SCHOOL' | 'COLLEGE'>('ALL');
   const isAdmin = currentUser?.role === 'admin';
 
   // Admin Edit Subject Modal state
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState<'SCHOOL' | 'COLLEGE'>('COLLEGE');
   const [editIcon, setEditIcon] = useState('sigma');
   const [editColor, setEditColor] = useState('#1677FF');
   const [editDescription, setEditDescription] = useState('');
@@ -51,16 +53,27 @@ export const AllSubjectsPage: React.FC<AllSubjectsPageProps> = ({
     setTimeout(() => setToast(null), 3500);
   };
 
-  const filtered = subjects.filter(
-    (s) =>
+  const schoolCount = subjects.filter((s) => s.educationalCategory === 'SCHOOL').length;
+  const collegeCount = subjects.filter((s) => s.educationalCategory !== 'SCHOOL').length;
+
+  const filtered = subjects.filter((s) => {
+    const matchesCategory =
+      selectedCategory === 'ALL' ||
+      (selectedCategory === 'SCHOOL' && s.educationalCategory === 'SCHOOL') ||
+      (selectedCategory === 'COLLEGE' && s.educationalCategory !== 'SCHOOL');
+
+    const matchesQuery =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.description && s.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+      (s.description && s.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return matchesCategory && matchesQuery;
+  });
 
   // Open Edit Subject Modal
   const handleOpenEditSubject = (subj: Subject) => {
     setEditingSubject(subj);
     setEditName(subj.name);
+    setEditCategory(subj.educationalCategory === 'SCHOOL' ? 'SCHOOL' : 'COLLEGE');
     setEditIcon(subj.icon || 'sigma');
     setEditColor(subj.iconColor || '#1677FF');
     setEditDescription(subj.description || '');
@@ -84,6 +97,7 @@ export const AllSubjectsPage: React.FC<AllSubjectsPageProps> = ({
         icon: editIcon,
         iconColor: editColor,
         description: editDescription.trim(),
+        educationalCategory: editCategory,
       });
       showToast('success', `Subject "${editName}" updated successfully.`);
       setEditingSubject(null);
@@ -163,6 +177,72 @@ export const AllSubjectsPage: React.FC<AllSubjectsPageProps> = ({
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#CBD5E1] rounded-xl text-xs sm:text-sm font-medium text-[#152238] focus:border-[#1677FF] outline-hidden shadow-2xs"
           />
         </div>
+      </div>
+
+      {/* Educational Category Filter Tabs */}
+      <div className="flex items-center gap-2 mb-6 border-b border-slate-200 pb-3 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setSelectedCategory('ALL')}
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+            selectedCategory === 'ALL'
+              ? 'bg-[#1677FF] text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:text-[#102A56] border border-slate-200'
+          }`}
+        >
+          <span>All Subjects</span>
+          <span
+            className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+              selectedCategory === 'ALL'
+                ? 'bg-white/20 text-white'
+                : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {subjects.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedCategory('SCHOOL')}
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+            selectedCategory === 'SCHOOL'
+              ? 'bg-[#1677FF] text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:text-[#102A56] border border-slate-200'
+          }`}
+        >
+          <span>Schools</span>
+          <span
+            className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+              selectedCategory === 'SCHOOL'
+                ? 'bg-white/20 text-white'
+                : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {schoolCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedCategory('COLLEGE')}
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+            selectedCategory === 'COLLEGE'
+              ? 'bg-[#1677FF] text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:text-[#102A56] border border-slate-200'
+          }`}
+        >
+          <span>Colleges</span>
+          <span
+            className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
+              selectedCategory === 'COLLEGE'
+                ? 'bg-white/20 text-white'
+                : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {collegeCount}
+          </span>
+        </button>
       </div>
 
       {/* Grid of Subject Cards */}
@@ -253,6 +333,26 @@ export const AllSubjectsPage: React.FC<AllSubjectsPageProps> = ({
                   placeholder="e.g. Data Structures & Algorithms"
                   className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF]"
                 />
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#102A56] mb-1">
+                  Educational Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value as 'SCHOOL' | 'COLLEGE')}
+                  className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF] text-[#102A56]"
+                >
+                  <option value="SCHOOL">School</option>
+                  <option value="COLLEGE">College</option>
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                  {editCategory === 'SCHOOL'
+                    ? 'Subject and its associated PDFs will move to the Schools section.'
+                    : 'Subject and its associated PDFs will move to the Colleges section.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

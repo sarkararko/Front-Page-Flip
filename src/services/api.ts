@@ -591,6 +591,7 @@ export const ApiService = {
           pdfCount: s.pdfCount || 0,
           topics: s.topics || [],
           createdAt: s.createdAt,
+          educationalCategory: s.educationalCategory === 'SCHOOL' ? 'SCHOOL' : 'COLLEGE',
         }));
         StorageService.setSubjects(mapped);
         return mapped;
@@ -620,6 +621,7 @@ export const ApiService = {
         iconColor: subject.iconColor,
         iconBgColor: subject.iconBgColor,
         topics: subject.topics,
+        educationalCategory: subject.educationalCategory || 'COLLEGE',
       }),
     });
 
@@ -635,6 +637,7 @@ export const ApiService = {
         pdfCount: created.pdfCount || 0,
         topics: created.topics || [],
         createdAt: created.createdAt || new Date().toISOString(),
+        educationalCategory: created.educationalCategory === 'SCHOOL' ? 'SCHOOL' : 'COLLEGE',
       };
       StorageService.saveSubject(mapped);
       return mapped;
@@ -659,6 +662,7 @@ export const ApiService = {
       icon: subject.icon || 'sigma',
       iconColor: subject.iconColor || '#1677FF',
       iconBgColor: subject.iconBgColor || '#EFF6FF',
+      educationalCategory: subject.educationalCategory || 'COLLEGE',
     };
 
     const res = await apiFetch<any>(`/subjects/${subject.id}`, {
@@ -676,6 +680,7 @@ export const ApiService = {
         icon: res.icon,
         iconColor: res.iconColor,
         iconBgColor: res.iconBgColor,
+        educationalCategory: (res.educationalCategory || cleanPayload.educationalCategory) === 'SCHOOL' ? 'SCHOOL' : 'COLLEGE',
         pdfCount: typeof res.pdfCount === 'number' ? res.pdfCount : subject.pdfCount,
       };
       StorageService.saveSubject(mapped);
@@ -731,6 +736,7 @@ export const ApiService = {
             uploadDate: p.createdAt ? p.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
             isPublished: p.published !== false,
             downloadAllowed: p.downloadAllowed !== false,
+            educationalCategory: p.educationalCategory === 'SCHOOL' ? 'SCHOOL' : 'COLLEGE',
           };
         });
         if (params?.searchQuery && params.searchQuery.trim()) {

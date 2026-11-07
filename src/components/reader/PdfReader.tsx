@@ -83,6 +83,8 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
 
   // UI & Loading State
   const [loading, setLoading] = useState<boolean>(true);
+  const [isFirstPageRendered, setIsFirstPageRendered] = useState<boolean>(false);
+  const [retryTrigger, setRetryTrigger] = useState<number>(0);
   const [loadingProgress, setLoadingProgress] = useState<string>('Connecting to PDF repository...');
   const [renderError, setRenderError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -200,7 +202,8 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
 
         setPdfDoc(doc);
         setNumPages(doc.numPages);
-        setLoading(false);
+        setLoadingProgress('Rendering original document page...');
+        // Note: loading remains true until renderCurrentPage completes rendering the first page on canvas!
       } catch (err: any) {
         if (isCancelled) return;
         console.error('Failed to load authentic PDF binary:', err);
@@ -216,7 +219,16 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [pdf.id, pdf.fileData, pdf.fileUrl, pdf.viewUrl, pdf.cloudinarySecureUrl]);
+  }, [pdf.id, pdf.fileData, pdf.fileUrl, pdf.viewUrl, pdf.cloudinarySecureUrl, retryTrigger]);
+
+  // Clean retry loading handler
+  const handleRetry = useCallback(() => {
+    setLoading(true);
+    setIsFirstPageRendered(false);
+    setRenderError(null);
+    setPdfDoc(null);
+    setRetryTrigger((prev) => prev + 1);
+  }, []);
 
   // Render active page onto canvas with high DPI sharpness
   const renderCurrentPage = useCallback(async () => {
@@ -263,12 +275,18 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
       await task.promise;
       ctx.restore();
       currentRenderTask.current = null;
+      setIsFirstPageRendered(true);
+      setLoading(false);
     } catch (err: any) {
       if (err?.name !== 'RenderingCancelledException') {
         console.warn('Canvas render interrupted:', err);
+        if (!isFirstPageRendered) {
+          setRenderError('Could not render original PDF page. Please retry.');
+          setLoading(false);
+        }
       }
     }
-  }, [pdfDoc, currentPage, zoomScale, rotation]);
+  }, [pdfDoc, currentPage, zoomScale, rotation, isFirstPageRendered]);
 
   useEffect(() => {
     if (pdfDoc && viewMode === 'single') {
@@ -576,29 +594,46 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           ref={containerRef}
           className="flex-1 overflow-auto p-4 sm:p-8 flex justify-center items-start bg-[#060913]"
         >
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-32 text-center">
-              <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" />
-              <h3 className="text-base font-bold text-white">Loading Original PDF...</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm">{loadingProgress}</p>
+          {(loading || !isFirstPageRendered) && !renderError ? (
+            <div className="flex flex-col items-center justify-center py-24 sm:py-36 text-center max-w-md mx-auto px-4 animate-fade-in">
+              <div className="relative mb-6">
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-blue-500/30 to-indigo-500/30 blur-lg animate-pulse" />
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/80 shadow-2xl flex items-center justify-center relative">
+                  <Loader2 className="w-8 h-8 text-[#1677FF] animate-spin" />
+                </div>
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                Loading your PDF, please wait.
+              </h3>
+              <p className="text-xs text-slate-400 mt-2 font-medium">
+                {pdf.title ? `Preparing "${pdf.title}"` : 'Preparing document pages and typography...'}
+              </p>
+              {loadingProgress && (
+                <div className="mt-4 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-[11px] font-mono text-slate-400">
+                  {loadingProgress}
+                </div>
+              )}
             </div>
           ) : renderError ? (
-            <div className="max-w-md mx-auto my-20 p-6 rounded-2xl bg-slate-900 border border-red-500/40 text-center">
-              <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-              <h3 className="text-base font-bold text-white">Could Not Display PDF</h3>
+            <div className="max-w-md mx-auto my-20 p-6 sm:p-8 rounded-2xl bg-slate-900/95 border border-red-500/40 text-center shadow-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-white">Could Not Display PDF</h3>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed">{renderError}</p>
-              <div className="mt-5 flex items-center justify-center gap-3">
+              <div className="mt-6 flex items-center justify-center gap-3">
                 <button
                   type="button"
-                  onClick={() => window.location.reload()}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg cursor-pointer"
+                  onClick={handleRetry}
+                  className="px-5 py-2.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-2"
                 >
-                  Retry Loading
+                  <RotateCw className="w-3.5 h-3.5" />
+                  <span>Retry Loading</span>
                 </button>
                 <button
                   type="button"
                   onClick={onBack}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg cursor-pointer"
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                 >
                   Return
                 </button>

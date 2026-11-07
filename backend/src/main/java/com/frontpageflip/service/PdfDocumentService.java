@@ -387,6 +387,11 @@ public class PdfDocumentService {
         resp.setCloudinaryPublicId(doc.getCloudinaryPublicId());
         resp.setCloudinarySecureUrl(doc.getCloudinarySecureUrl());
         resp.setThumbnailUrl(doc.getThumbnailUrl());
+        if (doc.getSubject() != null && doc.getSubject().getEducationalCategory() != null) {
+            resp.setEducationalCategory(doc.getSubject().getEducationalCategory());
+        } else {
+            resp.setEducationalCategory("COLLEGE");
+        }
 
         if (currentUserId != null) {
             resp.setSaved(readLaterRepository.existsByUserIdAndPdfId(currentUserId, doc.getId()));

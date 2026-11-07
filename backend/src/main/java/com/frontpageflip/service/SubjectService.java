@@ -72,6 +72,7 @@ public class SubjectService {
         if (request.getIcon() != null) subject.setIcon(request.getIcon());
         if (request.getIconColor() != null) subject.setIconColor(request.getIconColor());
         if (request.getIconBgColor() != null) subject.setIconBgColor(request.getIconBgColor());
+        subject.setEducationalCategory(normalizeCategory(request.getEducationalCategory()));
         subject.setCreatedBy(admin);
 
         Subject saved = subjectRepository.save(subject);
@@ -98,6 +99,9 @@ public class SubjectService {
         if (request.getIcon() != null) subject.setIcon(request.getIcon());
         if (request.getIconColor() != null) subject.setIconColor(request.getIconColor());
         if (request.getIconBgColor() != null) subject.setIconBgColor(request.getIconBgColor());
+        if (request.getEducationalCategory() != null && !request.getEducationalCategory().isBlank()) {
+            subject.setEducationalCategory(normalizeCategory(request.getEducationalCategory()));
+        }
 
         Subject saved = subjectRepository.save(subject);
         return toResponse(saved, adminUserId);
@@ -125,6 +129,12 @@ public class SubjectService {
         return list.stream().map(s -> toResponse(s, currentUserId)).collect(Collectors.toList());
     }
 
+    private String normalizeCategory(String cat) {
+        if (cat == null || cat.isBlank()) return "COLLEGE";
+        String upper = cat.trim().toUpperCase();
+        return "SCHOOL".equals(upper) ? "SCHOOL" : "COLLEGE";
+    }
+
     private SubjectResponse toResponse(Subject s, String currentUserId) {
         long pdfCount = pdfRepository.countBySubjectIdAndPublishedTrue(s.getId());
         SubjectResponse resp = new SubjectResponse(
@@ -135,6 +145,7 @@ public class SubjectService {
                 s.getIcon(),
                 s.getIconColor(),
                 s.getIconBgColor(),
+                s.getEducationalCategory() != null ? s.getEducationalCategory() : "COLLEGE",
                 pdfCount
         );
         if (currentUserId != null) {

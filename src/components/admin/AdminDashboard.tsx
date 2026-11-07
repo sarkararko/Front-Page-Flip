@@ -54,6 +54,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [subjectName, setSubjectName] = useState('');
+  const [subjectCategory, setSubjectCategory] = useState<'SCHOOL' | 'COLLEGE'>('COLLEGE');
   const [subjectIcon, setSubjectIcon] = useState('sigma');
   const [subjectColor, setSubjectColor] = useState('#1677FF');
   const [subjectDescription, setSubjectDescription] = useState('');
@@ -129,12 +130,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (subj) {
       setEditingSubject(subj);
       setSubjectName(subj.name);
+      setSubjectCategory(subj.educationalCategory === 'SCHOOL' ? 'SCHOOL' : 'COLLEGE');
       setSubjectIcon(subj.icon);
       setSubjectColor(subj.iconColor || '#1677FF');
       setSubjectDescription(subj.description || '');
     } else {
       setEditingSubject(null);
       setSubjectName('');
+      setSubjectCategory('SCHOOL');
       setSubjectIcon('sigma');
       setSubjectColor('#1677FF');
       setSubjectDescription('');
@@ -158,6 +161,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           icon: subjectIcon,
           iconColor: subjectColor,
           description: subjectDescription.trim(),
+          educationalCategory: subjectCategory,
         });
         showToast('success', `Subject "${subjectName}" updated successfully.`);
       } else {
@@ -170,6 +174,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           pdfCount: 0,
           description: subjectDescription.trim(),
           topics: ['Unit 1', 'Unit 2', 'Unit 3'],
+          educationalCategory: subjectCategory,
         });
         showToast('success', `New subject "${subjectName}" created.`);
       }
@@ -678,6 +683,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <thead className="bg-[#F8FAFC] text-[#102A56] font-bold border-b border-[#E2E8F0]">
                 <tr>
                   <th className="py-3 px-4">Subject Name</th>
+                  <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Slug</th>
                   <th className="py-3 px-4">PDF Count</th>
                   <th className="py-3 px-4">Description</th>
@@ -695,6 +701,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         {sub.name[0]}
                       </div>
                       <span>{sub.name}</span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                        sub.educationalCategory === 'SCHOOL'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                      }`}>
+                        {sub.educationalCategory === 'SCHOOL' ? 'School' : 'College'}
+                      </span>
                     </td>
                     <td className="py-3.5 px-4 font-mono text-slate-500">{sub.slug}</td>
                     <td className="py-3.5 px-4 font-semibold text-[#1677FF]">{sub.pdfCount}</td>
@@ -1186,6 +1201,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   placeholder="e.g. Data Structures & Algorithms"
                   className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF]"
                 />
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#102A56] mb-1">
+                  Educational Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={subjectCategory}
+                  onChange={(e) => setSubjectCategory(e.target.value as 'SCHOOL' | 'COLLEGE')}
+                  className="w-full p-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl font-medium outline-hidden focus:border-[#1677FF] text-[#102A56]"
+                >
+                  <option value="SCHOOL">School</option>
+                  <option value="COLLEGE">College</option>
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                  {subjectCategory === 'SCHOOL'
+                    ? 'Subjects assigned to School appear in the Schools section of Explore Subjects.'
+                    : 'Subjects assigned to College appear in the Colleges section of Explore Subjects.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
