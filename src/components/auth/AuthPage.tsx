@@ -341,12 +341,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#EEF4FD] via-[#F4F8FE] to-[#E9F1FC] flex items-center justify-center p-3 sm:p-4 lg:p-5 font-sans relative">
-      {/* Centered Two-Column Responsive Layout: Unified Seamless Container with Zero Gap */}
-      <div className="relative w-full max-w-[880px] lg:h-[570px] xl:h-[590px] bg-white rounded-3xl shadow-[0_16px_48px_rgba(16,42,86,0.10)] border border-slate-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-0 my-auto items-stretch">
+    <div className="min-h-screen bg-gradient-to-br from-[#EEF4FD] via-[#F4F8FE] to-[#E9F1FC] flex flex-col items-center justify-center py-4 px-3 sm:py-8 sm:px-6 lg:py-10 lg:px-6 font-sans relative">
+      {/* Centered Responsive Container Matching Reference Screenshot */}
+      <div className="relative w-full max-w-[440px] sm:max-w-[500px] lg:max-w-[920px] xl:max-w-[960px] lg:h-[590px] xl:h-[610px] bg-white rounded-3xl shadow-[0_16px_48px_rgba(16,42,86,0.10)] border border-slate-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-0 my-auto items-stretch">
         
-        {/* ================= 1. LEFT BOX: DEDICATED ARTWORK CARD ================= */}
-        <div className="w-full h-[200px] sm:h-[280px] lg:h-full lg:min-h-0 bg-[#F7FAFD] overflow-hidden relative p-0 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-slate-100">
+        {/* ================= 1. ILLUSTRATION SECTION (Left on Laptop, Top on Tablet & Mobile) ================= */}
+        <div className="w-full bg-[#EBF4FE] flex items-center justify-center relative p-0 overflow-hidden border-b lg:border-b-0 lg:border-r border-slate-100">
           <img
             src={USER_ARTWORK_IMAGE_URL}
             onError={(e) => {
@@ -354,28 +354,28 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                 'https://res.cloudinary.com/fi4r80wz/image/upload/v1793374381/Picsart_26-10-30_21-00-45-909.jpg_joebuu.jpg';
             }}
             alt="Front-Page Flip - Your notes. One place."
-            className="w-full h-full object-cover object-[center_42%] select-none pointer-events-none"
+            className="w-full h-auto lg:h-full object-contain select-none pointer-events-none"
             loading="eager"
           />
         </div>
 
-        {/* ================= 2. RIGHT BOX: AUTHENTICATION CARD ================= */}
-        <div className="relative w-full h-full min-h-[480px] lg:min-h-0 bg-white p-6 sm:p-7 lg:p-8 flex flex-col justify-center overflow-y-auto">
-          <div className="w-full max-w-[345px] mx-auto my-auto flex flex-col justify-center py-1 sm:py-2">
+        {/* ================= 2. AUTHENTICATION SECTION (Right on Laptop, Below on Tablet & Mobile) ================= */}
+        <div className="relative w-full h-full bg-white px-5 py-6 sm:px-8 sm:py-8 lg:p-8 flex flex-col justify-center overflow-y-auto">
+          <div className="w-full max-w-[345px] sm:max-w-[360px] mx-auto my-auto flex flex-col justify-center py-1 sm:py-2">
 
             {/* TOP HEADING */}
             <div className="text-center mb-3 sm:mb-4">
-              <h2 className="text-[25px] sm:text-[27px] font-black text-[#0F264C] tracking-tight leading-snug">
+              <h2 className="text-[24px] sm:text-[27px] font-black text-[#0F264C] tracking-tight leading-snug">
                 Welcome back!
               </h2>
-              <p className="text-xs sm:text-[13px] text-[#64748B] mt-1 font-normal">
+              <p className="text-xs sm:text-[13px] text-[#64748B] mt-0.5 sm:mt-1 font-normal">
                 Sign in to continue your learning journey.
               </p>
             </div>
 
-            {/* SWITCHING TABS: [ Login as Student ] [ Login as Admin ] as in Image 2 & 3 */}
+            {/* SWITCHING TABS: [ Login as Student ] [ Login as Admin ] as in Image */}
             <div className="p-1 bg-[#F1F5F9] border border-slate-200/90 rounded-2xl grid grid-cols-2 gap-1 mb-3.5">
-              {/* Login as Student: Active in Image 3 (white background, blue text/icon), Inactive in Image 2 (transparent, dark text/icon) */}
+              {/* Login as Student */}
               <button
                 type="button"
                 onClick={() => {
@@ -383,17 +383,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                   setError(null);
                   setSuccessMessage(null);
                 }}
-                className={`py-2 px-2.5 rounded-xl text-xs sm:text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-2 px-1.5 sm:px-2.5 rounded-xl text-xs sm:text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[40px] ${
                   activeRole === 'student'
                     ? 'bg-white text-[#0066FF] shadow-xs border border-slate-200/70'
                     : 'bg-transparent text-[#234268] hover:text-[#0F264C]'
                 }`}
               >
                 <GraduationCap className={`w-4 h-4 shrink-0 ${activeRole === 'student' ? 'text-[#0066FF]' : 'text-[#234268]'}`} />
-                <span className="tracking-normal">Login as Student</span>
+                <span className="tracking-normal whitespace-nowrap">Login as Student</span>
               </button>
 
-              {/* Login as Admin: Active in Image 2 (dark navy background, white text, green icon), Inactive in Image 3 (transparent, dark text, green icon) */}
+              {/* Login as Admin */}
               <button
                 type="button"
                 onClick={() => {
@@ -401,14 +401,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                   setError(null);
                   setSuccessMessage(null);
                 }}
-                className={`py-2 px-2.5 rounded-xl text-xs sm:text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-2 px-1.5 sm:px-2.5 rounded-xl text-xs sm:text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[40px] ${
                   activeRole === 'admin'
                     ? 'bg-[#0B2548] text-white shadow-xs border border-[#0B2548]'
                     : 'bg-transparent text-[#234268] hover:text-[#0F264C]'
                 }`}
               >
                 <ShieldCheck className="w-4 h-4 shrink-0 text-[#00C48C]" />
-                <span className="tracking-normal">Login as Admin</span>
+                <span className="tracking-normal whitespace-nowrap">Login as Admin</span>
               </button>
             </div>
 
@@ -843,7 +843,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                     </div>
 
                     <form onSubmit={handleVerifySubmit} className="space-y-3">
-                      <div className="flex justify-center gap-1.5 sm:gap-2">
+                      <div className="flex justify-center gap-1 min-[360px]:gap-1.5 sm:gap-2">
                         {verifyDigits.map((digit, index) => (
                           <input
                             key={index}
@@ -852,7 +852,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialError }) =
                             maxLength={6}
                             value={digit}
                             onChange={(e) => handleDigitChange(index, e.target.value)}
-                            className="w-9 sm:w-10 h-11 sm:h-12 text-center text-lg font-bold text-[#102A56] bg-white border border-slate-300 rounded-xl focus:border-[#1677FF] focus:ring-1 focus:ring-[#1677FF]/20 outline-hidden font-mono"
+                            className="w-8 min-[360px]:w-9 sm:w-10 h-10 min-[360px]:h-11 sm:h-12 text-center text-base sm:text-lg font-bold text-[#102A56] bg-white border border-slate-300 rounded-xl focus:border-[#1677FF] focus:ring-1 focus:ring-[#1677FF]/20 outline-hidden font-mono"
                           />
                         ))}
                       </div>

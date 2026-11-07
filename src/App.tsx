@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Subject, PdfResource } from './types';
-import { ApiService } from './services/api';
+import { ApiService, getApiBaseUrl } from './services/api';
 import { StorageService } from './services/storage';
 import { PresenceService } from './services/presence';
 import { Navbar } from './components/common/Navbar';
@@ -26,8 +26,27 @@ export default function App() {
   const [goldenRedirectNotice, setGoldenRedirectNotice] = useState<string | undefined>(undefined);
 
   // App data loaded from backend / StorageService
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [pdfs, setPdfs] = useState<PdfResource[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>(() => {
+    try {
+      return StorageService.getSubjects();
+    } catch {
+      return [];
+    }
+  });
+  const [pdfs, setPdfs] = useState<PdfResource[]>(() => {
+    try {
+      return StorageService.getPdfs();
+    } catch {
+      return [];
+    }
+  });
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(() => {
+    try {
+      return StorageService.getSubjects().length === 0;
+    } catch {
+      return true;
+    }
+  });
   const [userFavorites, setUserFavorites] = useState<string[]>([]);
   const [readLaterIds, setReadLaterIds] = useState<string[]>([]);
 
@@ -55,11 +74,15 @@ export default function App() {
 
     // Fetch authoritative profile directly from backend MySQL (/api/v1/auth/me)
     if (user || StorageService.getSessionToken()) {
-      ApiService.fetchCurrentUserProfile().then((freshProfile) => {
-        if (freshProfile) {
-          setCurrentUser(freshProfile);
-        }
-      });
+      ApiService.fetchCurrentUserProfile()
+        .then((freshProfile) => {
+          if (freshProfile) {
+            setCurrentUser(freshProfile);
+          }
+        })
+        .catch(() => {
+          // Backend offline or token expired: safely keep existing profile
+        });
     }
 
     try {
@@ -69,20 +92,27 @@ export default function App() {
       ]);
       setSubjects(subs);
       setPdfs(pList);
+      StorageService.setSubjects(subs);
     } catch {
       // Fallback
+    } finally {
+      setIsInitialLoading(false);
     }
 
     if (user) {
       setUserFavorites(ApiService.getUserFavorites(user.id));
       setReadLaterIds(ApiService.getUserReadLater(user.id));
       // Sync favorites and read-later directly from backend MySQL
-      ApiService.syncLibraryFromBackend(user.id).then((synced) => {
-        if (synced) {
-          setUserFavorites(synced.favorites);
-          setReadLaterIds(synced.readLater);
-        }
-      });
+      ApiService.syncLibraryFromBackend(user.id)
+        .then((synced) => {
+          if (synced) {
+            setUserFavorites(synced.favorites);
+            setReadLaterIds(synced.readLater);
+          }
+        })
+        .catch(() => {
+          // Keep local favorites and read-later state
+        });
     }
   };
 
@@ -124,9 +154,13 @@ export default function App() {
           window.history.replaceState(null, '', window.location.pathname);
 
           // Authoritatively sync user profile from MySQL
-          ApiService.fetchCurrentUserProfile().then((fresh) => {
-            if (fresh) setCurrentUser(fresh);
-          });
+          ApiService.fetchCurrentUserProfile()
+            .then((fresh) => {
+              if (fresh) setCurrentUser(fresh);
+            })
+            .catch(() => {
+              // Ignore network failure
+            });
 
           loadData();
           return;
@@ -149,12 +183,14 @@ export default function App() {
     let isMounted = true;
     const fetchCounts = async () => {
       try {
-        const [active, total] = await Promise.all([
-          PresenceService.getActiveStudentsCount(),
-          PresenceService.getRegisteredStudentCount(),
-        ]);
+        const counts = await PresenceService.getStudentCounts();
         if (isMounted) {
-          setActiveStudentsCount(active);
+          setActiveStudentsCount(counts.activeCount);
+          setRegisteredStudentsCount(counts.totalStudents);
+        }
+      } catch {
+        if (isMounted) {
+          const total = StorageService.getUsers().filter((u) => u.role === 'student').length;
           setRegisteredStudentsCount(total);
         }
       } finally {
@@ -337,6 +373,7 @@ export default function App() {
             readingProgressMap={readingProgressMap}
             activeStudentsCount={activeStudentsCount}
             registeredStudentsCount={registeredStudentsCount}
+            isLoading={isInitialLoading}
             onSearch={handleHeroSearch}
             onSelectSubject={handleSelectSubject}
             onViewAllSubjects={() => handleNavigate('subjects')}

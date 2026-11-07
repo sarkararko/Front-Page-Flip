@@ -263,6 +263,16 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
   const isProd = process.env.NODE_ENV === 'production';
 
+  // Serve static assets from public/ folder directly (e.g., pdf.worker.min.mjs, icons, images)
+  app.use(express.static(path.resolve('public'), {
+    maxAge: '1d',
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.mjs') || filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'text/javascript');
+      }
+    },
+  }));
+
   if (!isProd) {
     const vite = await createViteServer({
       server: { middlewareMode: true },

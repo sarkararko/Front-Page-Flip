@@ -29,10 +29,8 @@ import { PdfFileStore } from '../../services/pdfFileStore';
 // Configure Mozilla PDF.js worker
 if (typeof window !== 'undefined') {
   try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      'pdfjs-dist/build/pdf.worker.min.mjs',
-      import.meta.url
-    ).toString();
+    // 1. Prefer public worker served locally to avoid CDN blocking
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
   } catch {
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '4.10.38'}/pdf.worker.min.mjs`;
   }
@@ -592,10 +590,11 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
         {/* Main Document Workspace */}
         <main
           ref={containerRef}
-          className="flex-1 overflow-auto p-4 sm:p-8 flex justify-center items-start bg-[#060913]"
+          className="flex-1 overflow-auto p-4 sm:p-8 flex justify-center items-start bg-[#060913] relative min-h-[400px]"
         >
-          {(loading || !isFirstPageRendered) && !renderError ? (
-            <div className="flex flex-col items-center justify-center py-24 sm:py-36 text-center max-w-md mx-auto px-4 animate-fade-in">
+          {/* 1. Loading Screen: Displayed while the PDF document or first page is loading */}
+          {(loading || !isFirstPageRendered) && !renderError && (
+            <div className="flex flex-col items-center justify-center py-24 sm:py-36 text-center max-w-md mx-auto px-4 animate-fade-in z-20">
               <div className="relative mb-6">
                 <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-blue-500/30 to-indigo-500/30 blur-lg animate-pulse" />
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/80 shadow-2xl flex items-center justify-center relative">
@@ -614,8 +613,11 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
                 </div>
               )}
             </div>
-          ) : renderError ? (
-            <div className="max-w-md mx-auto my-20 p-6 sm:p-8 rounded-2xl bg-slate-900/95 border border-red-500/40 text-center shadow-2xl">
+          )}
+
+          {/* 2. Error State */}
+          {renderError && (
+            <div className="max-w-md mx-auto my-20 p-6 sm:p-8 rounded-2xl bg-slate-900/95 border border-red-500/40 text-center shadow-2xl z-20">
               <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="w-8 h-8" />
               </div>
@@ -639,9 +641,11 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
                 </button>
               </div>
             </div>
-          ) : (
-            /* Authentic High-Fidelity PDF Page Sheet Canvas */
-            <div className="relative flex flex-col items-center pb-12 transition-transform duration-100">
+          )}
+
+          {/* 3. Authentic High-Fidelity PDF Page Sheet Canvas - always mounted so ref is attached, invisible until rendered */}
+          {!renderError && (
+            <div className={`relative flex flex-col items-center pb-12 transition-opacity duration-200 ${isFirstPageRendered && !loading ? 'opacity-100' : 'opacity-0 absolute pointer-events-none'}`}>
               <div className="bg-white rounded-sm shadow-2xl shadow-black/80 border border-slate-300 overflow-hidden">
                 <canvas ref={canvasRef} className="block" />
               </div>

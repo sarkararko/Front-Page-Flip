@@ -10,10 +10,17 @@ export function getBackendBaseUrl(): string {
   if (typeof window !== 'undefined') {
     const custom = (import.meta as any).env?.VITE_API_URL;
     if (custom) return custom.replace(/\/+$/, '');
+    // In local dev, vite preview, or AI Studio preview container, route through server.ts proxy
     if (
-      window.location.hostname !== 'localhost' &&
-      window.location.hostname !== '127.0.0.1'
+      (import.meta as any).env?.DEV ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.includes('.run.app')
     ) {
+      return '';
+    }
+    // Only on remote static hosts without server.ts (e.g. Vercel)
+    if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('github.io')) {
       return 'https://frontpageflip-backend.onrender.com';
     }
   }

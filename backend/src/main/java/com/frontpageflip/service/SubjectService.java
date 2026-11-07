@@ -37,7 +37,43 @@ public class SubjectService {
 
     public List<SubjectResponse> getAllSubjects(String currentUserId) {
         List<Subject> subjects = subjectRepository.findAll();
-        return subjects.stream().map(s -> toResponse(s, currentUserId)).collect(Collectors.toList());
+        if (subjects.isEmpty()) {
+            return List.of();
+        }
+
+        // Batch fetch published PDF counts per subject in a single optimized query
+        java.util.Map<String, Long> countMap = new java.util.HashMap<>();
+        try {
+            List<Object[]> counts = subjectRepository.countPdfsPerSubject();
+            for (Object[] row : counts) {
+                if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                    countMap.put((String) row[0], ((Number) row[1]).longValue());
+                }
+            }
+        } catch (Exception e) {
+            // Fallback gracefully if aggregation fails
+        }
+
+        return subjects.stream().map(s -> {
+            long pdfCount = countMap.containsKey(s.getId())
+                    ? countMap.get(s.getId())
+                    : pdfRepository.countBySubjectIdAndPublishedTrue(s.getId());
+            SubjectResponse resp = new SubjectResponse(
+                    s.getId(),
+                    s.getName(),
+                    s.getSlug(),
+                    s.getDescription(),
+                    s.getIcon(),
+                    s.getIconColor(),
+                    s.getIconBgColor(),
+                    s.getEducationalCategory() != null ? s.getEducationalCategory() : "COLLEGE",
+                    pdfCount
+            );
+            if (currentUserId != null) {
+                resp.setFavorite(favoriteRepository.existsByUserIdAndSubjectId(currentUserId, s.getId()));
+            }
+            return resp;
+        }).collect(Collectors.toList());
     }
 
     public SubjectResponse getSubjectBySlug(String slug, String currentUserId) {

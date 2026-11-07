@@ -22,6 +22,7 @@ interface HomePageProps {
   readingProgressMap?: Record<string, { lastPageRead: number; totalPages: number }>;
   activeStudentsCount?: number;
   registeredStudentsCount?: number;
+  isLoading?: boolean;
   onSearch: (query: string) => void;
   onSelectSubject: (subject: Subject) => void;
   onViewAllSubjects: () => void;
@@ -43,6 +44,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   readingProgressMap,
   activeStudentsCount = 0,
   registeredStudentsCount,
+  isLoading = false,
   onSearch,
   onSelectSubject,
   onViewAllSubjects,
@@ -283,7 +285,27 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
 
         {/* 4x2 Grid of Subject Cards */}
-        {displayedSubjects.length > 0 ? (
+        {isLoading && displayedSubjects.length === 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {Array.from({ length: 8 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs animate-pulse"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-11 h-11 rounded-xl bg-slate-200" />
+                  <div className="w-6 h-6 rounded-full bg-slate-100" />
+                </div>
+                <div className="h-4 bg-slate-200 rounded-md w-3/4 mb-2" />
+                <div className="h-3 bg-slate-100 rounded-md w-1/2 mb-4" />
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="h-3 bg-slate-100 rounded w-1/3" />
+                  <div className="h-3 bg-slate-100 rounded w-1/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : displayedSubjects.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             {displayedSubjects.map((subject) => (
               <SubjectCard
@@ -348,7 +370,29 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
 
         {/* 4-column Grid of PDF Resource Cards */}
-        {displayedPdfs.length > 0 ? (
+        {isLoading && displayedPdfs.length === 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs animate-pulse flex flex-col justify-between h-48"
+              >
+                <div>
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-slate-200" />
+                    <div className="h-3 bg-slate-200 rounded w-1/2" />
+                  </div>
+                  <div className="h-4 bg-slate-200 rounded-md w-4/5 mb-2" />
+                  <div className="h-3 bg-slate-100 rounded-md w-3/5" />
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <div className="h-3 bg-slate-100 rounded w-1/4" />
+                  <div className="h-7 bg-slate-200 rounded-lg w-20" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : displayedPdfs.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             {displayedPdfs.map((pdf) => (
               <PdfCard

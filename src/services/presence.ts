@@ -8,32 +8,48 @@ export interface PresenceResponse {
   windowMinutes?: number;
   status?: string;
 }
-
 export const PresenceService = {
   /**
-   * Fetches the total distinct registered students count directly from MySQL via the backend.
-   * Admins are strictly excluded. Uses cache: 'no-store' to guarantee fresh data.
+   * Fetches both active and total registered students count in a single request.
+   * Gracefully falls back to local user store on any network or server error.
    */
-  async getRegisteredStudentCount(): Promise<number> {
+  async getStudentCounts(): Promise<{ activeCount: number; totalStudents: number }> {
     try {
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/presence/student-count`, {
+      const res = await fetch(`${apiBase}/presence/active-students-count?window=5`, {
         headers: { Accept: 'application/json' },
-        cache: 'no-store',
       });
       if (res.ok) {
         const data: PresenceResponse = await res.json();
-        const count = data.totalStudents ?? data.count;
-        if (typeof count === 'number') {
-          return count;
-        }
+        const active = typeof data.activeCount === 'number' ? data.activeCount : (data.count ?? 0);
+        const total = typeof data.totalStudents === 'number' ? data.totalStudents : (data.count ?? 0);
+        return { activeCount: active, totalStudents: total };
       }
     } catch {
-      // Backend offline or running in fallback mode
+      // Backend offline, sleeping or network unreachable: use local fallback
     }
 
     const students = StorageService.getUsers().filter((u) => u.role === 'student');
-    return students.length;
+    const currentUser = StorageService.getCurrentUser();
+    const active = currentUser && currentUser.role === 'student' ? 1 : 0;
+    return {
+      activeCount: active,
+      totalStudents: students.length,
+    };
+  },
+
+  /**
+   * Fetches the total distinct registered students count directly from MySQL via the backend.
+   * Admins are strictly excluded.
+   */
+  async getRegisteredStudentCount(): Promise<number> {
+    try {
+      const counts = await this.getStudentCounts();
+      return counts.totalStudents;
+    } catch {
+      const students = StorageService.getUsers().filter((u) => u.role === 'student');
+      return students.length;
+    }
   },
 
   /**
@@ -45,7 +61,6 @@ export const PresenceService = {
       const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/presence/active-students-count?window=${windowMinutes}`, {
         headers: { Accept: 'application/json' },
-        cache: 'no-store',
       });
       if (res.ok) {
         const data: PresenceResponse = await res.json();
