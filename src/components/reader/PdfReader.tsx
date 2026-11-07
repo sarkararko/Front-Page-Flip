@@ -392,7 +392,7 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
         </div>
 
         {/* Center: Page Controls */}
-        <div className="flex items-center gap-2 bg-[#0A0E1A] px-3 py-1 rounded-lg border border-slate-700 text-xs">
+        <div className="flex items-center gap-1 sm:gap-2 bg-[#0A0E1A] px-2 sm:px-3 py-1 rounded-lg border border-slate-700 text-xs">
           <button
             type="button"
             disabled={currentPage <= 1 || loading}
@@ -400,10 +400,10 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
             className="p-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
             title="Previous page (Left arrow)"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
-          <div className="flex items-center gap-1 font-mono font-medium">
+          <div className="flex items-center gap-1 font-mono font-medium text-[11px] sm:text-xs">
             <input
               type="number"
               min={1}
@@ -414,7 +414,7 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
                 const val = parseInt(e.target.value);
                 if (val >= 1 && val <= numPages) setCurrentPage(val);
               }}
-              className="w-10 bg-slate-800 text-center rounded text-white py-0.5 outline-hidden border border-slate-700 focus:border-blue-500"
+              className="w-8 sm:w-10 bg-slate-800 text-center rounded text-white py-0.5 outline-hidden border border-slate-700 focus:border-blue-500"
             />
             <span className="text-slate-400">/ {numPages}</span>
           </div>
@@ -426,12 +426,12 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
             className="p-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
             title="Next page (Right arrow)"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
 
         {/* Right: Actions (Zoom, Read Later, Download, Fullscreen) */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {/* Zoom controls */}
           <div className="hidden lg:flex items-center gap-1 bg-[#0A0E1A] px-2 py-1 rounded-lg border border-slate-700 text-xs">
             <button

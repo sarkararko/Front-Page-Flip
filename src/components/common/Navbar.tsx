@@ -67,18 +67,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-[#E2E8F0] shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between min-h-[96px] sm:min-h-[114px] py-1">
-          {/* Left: Brand Logo + Navigation Links + Registered Students (Balanced Equal Spacing) */}
-          <div className="flex items-center gap-2 sm:gap-3 lg:gap-3.5 shrink-0">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between min-h-[64px] sm:min-h-[114px] py-1">
+          {/* Left: Brand Logo + Navigation Links + Registered Students (Desktop) */}
+          <div className="flex items-center gap-1.5 sm:gap-3 lg:gap-3.5 shrink-0 min-w-0">
             <div
               onClick={() => onNavigate('home')}
-              className="cursor-pointer inline-flex items-center select-none py-[2px] px-1 shrink-0"
+              className="cursor-pointer inline-flex items-center select-none py-[2px] px-0.5 sm:px-1 shrink-0"
+              title="Front-Page Flip Home"
             >
               <img
                 src="https://res.cloudinary.com/fi4r80wz/image/upload/v1792825222/fpf_logo_99_spkx2y.png"
                 alt="Front-Page Flip"
-                className="w-[125px] sm:w-[157px] h-[86px] sm:h-[110px] object-contain transition-transform duration-200 hover:scale-105"
+                className="w-[96px] xs:w-[110px] sm:w-[157px] h-[52px] xs:h-[60px] sm:h-[110px] object-contain transition-transform duration-200 hover:scale-105"
                 loading="eager"
               />
             </div>
@@ -135,11 +136,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Navigation Controls */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Mobile-only Registered Students Badge */}
+          <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-3 shrink-0">
+            {/* Tablet-only Registered Students Badge (Hidden on mobile to preserve navbar width) */}
             <div
               title="Total registered student accounts in Aiven MySQL database"
-              className="md:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E6F8F5] border border-[#A5E7DC] text-[#00A88F] text-[11px] font-semibold select-none shadow-2xs"
+              className="hidden sm:flex md:hidden items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E6F8F5] border border-[#A5E7DC] text-[#00A88F] text-[11px] font-semibold select-none shadow-2xs"
             >
               <Users className="w-3.5 h-3.5 text-[#00A88F] fill-[#00A88F] shrink-0" />
               {registeredStudentsLoading ? (
@@ -161,9 +162,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={onOpenSearch}
               title="Search notes, subjects and topics"
-              className="p-2 text-slate-700 hover:text-[#1677FF] hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 text-slate-700 hover:text-[#1677FF] hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {/* Subtle Divider before My Library */}
@@ -191,16 +192,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative p-2 text-slate-700 hover:text-[#1677FF] hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                className="relative p-1.5 sm:p-2 text-slate-700 hover:text-[#1677FF] hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                title="Notifications"
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                 {/* Red notification dot */}
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+                <span className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
               </button>
 
               {/* Notification Popover */}
               {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 text-xs">
+                <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 text-xs">
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
                     <span className="font-bold text-[#102A56]">Notifications</span>
                   </div>
@@ -214,7 +216,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Subtle Divider before Profile Avatar */}
-            {currentUser && <div className="h-6 w-px bg-slate-200/90 mx-0.5" />}
+            {currentUser && <div className="h-5 sm:h-6 w-px bg-slate-200/90 mx-0.5 hidden xs:block" />}
 
             {/* User Profile Avatar with Dropdown */}
             {currentUser && (
@@ -222,17 +224,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-1.5 p-1 rounded-full hover:ring-2 hover:ring-[#1677FF]/30 transition-all cursor-pointer"
+                  className="flex items-center gap-1 sm:gap-1.5 p-0.5 sm:p-1 rounded-full hover:ring-2 hover:ring-[#1677FF]/30 transition-all cursor-pointer"
+                  title="Profile menu"
                 >
-                  <div className="w-9 h-9 rounded-full bg-[#0066FF] text-white flex items-center justify-center font-bold text-xs shadow-xs tracking-wider">
+                  <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-[#0066FF] text-white flex items-center justify-center font-bold text-[11px] sm:text-xs shadow-xs tracking-wider">
                     {currentUser.avatar || 'AD'}
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-600 shrink-0" />
                 </button>
 
                 {/* Dropdown Menu */}
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
                     {/* User Info Header */}
                     <div className="px-4 py-3 border-b border-slate-100">
                       <div className="flex items-center justify-between">
@@ -258,7 +261,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onNavigate('my-library', { subTab: 'read-later' });
                           setDropdownOpen(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2.5"
+                        className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer"
                       >
                         <BookMarked className="w-4 h-4 text-[#1677FF]" />
                         <span>Read Later</span>
@@ -270,7 +273,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onNavigate('my-library', { subTab: 'favorites' });
                           setDropdownOpen(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2.5"
+                        className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer"
                       >
                         <Star className="w-4 h-4 text-amber-500" />
                         <span>Favorite Subjects</span>
@@ -282,7 +285,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onNavigate('my-library', { subTab: 'recently-viewed' });
                           setDropdownOpen(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2.5"
+                        className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer"
                       >
                         <Clock className="w-4 h-4 text-slate-500" />
                         <span>Recently Viewed</span>
@@ -295,7 +298,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             onNavigate('admin');
                             setDropdownOpen(false);
                           }}
-                          className="w-full px-4 py-2 text-left text-purple-700 font-semibold hover:bg-purple-50 flex items-center gap-2.5 border-t border-slate-100"
+                          className="w-full px-4 py-2 text-left text-purple-700 font-semibold hover:bg-purple-50 flex items-center gap-2.5 border-t border-slate-100 cursor-pointer"
                         >
                           <Shield className="w-4 h-4 text-purple-600" />
                           <span>Admin Dashboard</span>
@@ -308,7 +311,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onNavigate('profile');
                           setDropdownOpen(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 border-t border-slate-100"
+                        className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 border-t border-slate-100 cursor-pointer"
                       >
                         <UserIcon className="w-4 h-4 text-slate-500" />
                         <span>Profile &amp; Settings</span>
@@ -321,7 +324,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onNavigate('golden');
                           setDropdownOpen(false);
                         }}
-                        className="w-full px-4 py-2.5 text-left bg-gradient-to-r from-amber-500/15 via-yellow-500/15 to-amber-500/5 hover:from-amber-500/25 hover:via-yellow-500/25 border-t border-amber-200/80 flex items-center justify-between group transition-colors"
+                        className="w-full px-4 py-2.5 text-left bg-gradient-to-r from-amber-500/15 via-yellow-500/15 to-amber-500/5 hover:from-amber-500/25 hover:via-yellow-500/25 border-t border-amber-200/80 flex items-center justify-between group transition-colors cursor-pointer"
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-6 h-6 rounded-md bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center shadow-xs">
@@ -347,7 +350,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setDropdownOpen(false);
                           onLogout();
                         }}
-                        className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2.5 border-t border-slate-100"
+                        className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2.5 border-t border-slate-100 cursor-pointer"
                       >
                         <LogOut className="w-4 h-4 text-red-500" />
                         <span>Sign Out</span>
@@ -359,13 +362,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {/* Mobile Menu Toggle */}
-            <div className="flex md:hidden">
+            <div className="flex md:hidden items-center">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 text-slate-600 hover:text-[#102A56] rounded-lg"
+                className="p-1.5 sm:p-2 text-slate-600 hover:text-[#102A56] rounded-lg cursor-pointer"
+                aria-label="Toggle navigation menu"
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {mobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Menu className="w-5 h-5 sm:w-6 sm:h-6" />}
               </button>
             </div>
           </div>
