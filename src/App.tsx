@@ -18,6 +18,7 @@ import { GoldenPage } from './components/golden/GoldenPage';
 import { QuickSearchModal } from './components/common/QuickSearchModal';
 import { Logo } from './components/common/Logo';
 import { Footer } from './components/common/Footer';
+import { useNavigationHistory } from './hooks/useNavigationHistory';
 
 export default function App() {
   // Authentication session
@@ -64,6 +65,25 @@ export default function App() {
 
   // Search Modal state
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  // Centralized HTML5 History & Route-Aware Scroll Restoration
+  const { navigateTo, navigateBack } = useNavigationHistory({
+    activeTab,
+    setActiveTab,
+    selectedSubject,
+    setSelectedSubject,
+    activePdf,
+    setActivePdf,
+    librarySubTab,
+    setLibrarySubTab,
+    browseSearchQuery,
+    setBrowseSearchQuery,
+    goldenRedirectNotice,
+    setGoldenRedirectNotice,
+    subjects,
+    pdfs,
+    isLoggedIn: !!currentUser,
+  });
 
   // Load initial data and sync authoritative user profile from backend MySQL
   const loadData = async () => {
@@ -298,12 +318,9 @@ export default function App() {
     StorageService.setCurrentUser(user);
     setCurrentUser(user);
     loadData();
-    // Redirect according to role
-    if (user.role === 'admin') {
-      setActiveTab('admin');
-    } else {
-      setActiveTab('home');
-    }
+    // Redirect according to role and replace history so back doesn't take user back to auth
+    const targetTab = user.role === 'admin' ? 'admin' : 'home';
+    navigateTo(targetTab, { replace: true, pdf: null, subject: null });
   };
 
   const handleLogout = async () => {
@@ -312,8 +329,7 @@ export default function App() {
     }
     await ApiService.logout();
     setCurrentUser(null);
-    setActivePdf(null);
-    setActiveTab('home');
+    navigateTo('home', { replace: true, pdf: null, subject: null });
     const updatedCount = await PresenceService.getActiveStudentsCount();
     setActiveStudentsCount(updatedCount);
   };
@@ -333,34 +349,29 @@ export default function App() {
   };
 
   const handleViewPdf = (pdf: PdfResource) => {
-    setActivePdf(pdf);
+    navigateTo(activeTab, { pdf });
   };
 
   const handleSelectSubject = (subject: Subject) => {
-    setSelectedSubject(subject);
-    setActiveTab('subject-detail');
+    navigateTo('subject-detail', { subject, pdf: null });
   };
 
   const handleHeroSearch = (query: string) => {
-    setBrowseSearchQuery(query);
-    setActiveTab('browse');
+    navigateTo('browse', { searchQuery: query, pdf: null });
   };
 
   const handleNavigate = (tab: string, extra?: any) => {
     // Strict RBAC: Students cannot navigate to administrator console
     if (tab === 'admin' && currentUser?.role !== 'admin') {
-      setActiveTab('home');
+      navigateTo('home', { pdf: null });
       return;
     }
 
-    setActiveTab(tab);
-    if (extra?.subTab) {
-      setLibrarySubTab(extra.subTab);
-    }
-    if (tab === 'browse') {
-      setBrowseSearchQuery('');
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    navigateTo(tab, {
+      subTab: extra?.subTab,
+      searchQuery: tab === 'browse' ? '' : undefined,
+      pdf: null,
+    });
   };
 
   // Prepared data for views (computed unconditionally before any early returns)
@@ -386,13 +397,14 @@ export default function App() {
         pdf={activePdf}
         userId={currentUser.id}
         currentUser={currentUser}
-        onBack={() => setActivePdf(null)}
+        onBack={() => navigateBack(activeTab || 'home')}
         isReadLater={readLaterIds.includes(activePdf.id)}
         onToggleReadLater={() => handleToggleReadLater(activePdf.id)}
         onGoToGolden={(pdfTitle) => {
-          setActivePdf(null);
-          setGoldenRedirectNotice(pdfTitle);
-          setActiveTab('golden');
+          navigateTo('golden', {
+            goldenNotice: pdfTitle,
+            pdf: null,
+          });
         }}
       />
     );
@@ -493,7 +505,7 @@ export default function App() {
             onToggleFavorite={(id) => handleToggleFavorite(id)}
             onToggleReadLater={handleToggleReadLater}
             onViewPdf={handleViewPdf}
-            onBack={() => handleNavigate('subjects')}
+            onBack={() => navigateBack('subjects')}
           />
         )}
 
@@ -544,7 +556,7 @@ export default function App() {
             currentUser={currentUser}
             fromPdfTitle={goldenRedirectNotice}
             onNavigate={handleNavigate}
-            onBack={() => handleNavigate('home')}
+            onBack={() => navigateBack('home')}
             onPaymentSuccess={() => {
               loadData();
             }}
@@ -561,8 +573,7 @@ export default function App() {
         onViewPdf={handleViewPdf}
         onSelectSubject={handleSelectSubject}
         onViewAllResults={(q) => {
-          setBrowseSearchQuery(q);
-          setActiveTab('browse');
+          handleHeroSearch(q);
         }}
       />
 
