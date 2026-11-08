@@ -388,18 +388,41 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           setLoadingProgress('Streaming original PDF from storage...');
 
           let buffer: ArrayBuffer | null = null;
-          try {
-            const resp = await fetch(viewUrl, { headers });
-            if (resp.ok) {
-              buffer = await resp.arrayBuffer();
+
+          // Priority A: If Cloudinary secure URL is present, fetch directly from global CDN
+          if (pdf.cloudinarySecureUrl) {
+            try {
+              const cResp = await fetch(pdf.cloudinarySecureUrl);
+              if (cResp.ok) {
+                buffer = await cResp.arrayBuffer();
+              }
+            } catch {
+              // Direct CDN fetch had restrictions, proceed to proxy
             }
-          } catch {
-            // Fallback to direct URL if backend proxy was unavailable
           }
 
-          if (!buffer && fallbackUrl && fallbackUrl !== viewUrl) {
+          // Priority B: Streaming endpoint from backend with 4.5s timeout
+          if (!buffer) {
             try {
-              const resp2 = await fetch(fallbackUrl);
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 4500);
+              const resp = await fetch(viewUrl, { headers, signal: controller.signal });
+              clearTimeout(timeoutId);
+              if (resp.ok) {
+                buffer = await resp.arrayBuffer();
+              }
+            } catch {
+              // Backend cold start or sleeping, continue to fallback
+            }
+          }
+
+          // Priority C: Direct fallback URL
+          if (!buffer && fallbackUrl && fallbackUrl !== viewUrl && fallbackUrl !== pdf.cloudinarySecureUrl) {
+            try {
+              const controller2 = new AbortController();
+              const timeoutId2 = setTimeout(() => controller2.abort(), 4500);
+              const resp2 = await fetch(fallbackUrl, { signal: controller2.signal });
+              clearTimeout(timeoutId2);
               if (resp2.ok) {
                 buffer = await resp2.arrayBuffer();
               }
@@ -413,7 +436,7 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           } else {
             // Direct URL loading via PDF.js
             pdfSource = {
-              url: fallbackUrl || viewUrl,
+              url: pdf.cloudinarySecureUrl || fallbackUrl || viewUrl,
               withCredentials: false,
             };
           }
@@ -436,6 +459,8 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
 
         setPdfDoc(doc);
         setNumPages(doc.numPages);
+        setLoading(false);
+        setIsFirstPageRendered(true);
         setLoadingProgress('Preparing vertical document layout...');
 
         // Sample Page 1 for natural aspect ratio
@@ -666,10 +691,10 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           <button
             type="button"
             onClick={handleDownloadClick}
-            className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-sm shrink-0 whitespace-nowrap ${
+            className={`transition-all cursor-pointer shrink-0 whitespace-nowrap flex items-center justify-center ${
               canDownload
-                ? 'bg-[#1677FF] hover:bg-[#0E63DC] text-white'
-                : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white'
+                ? 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold gap-1.5 bg-[#1677FF] hover:bg-[#0E63DC] text-white shadow-sm'
+                : 'px-2 min-[380px]:px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FFA800] via-[#FF7E00] to-[#FF6400] hover:brightness-105 active:scale-[0.98] shadow-md shadow-orange-500/20 text-white'
             }`}
             title={canDownload ? 'Download Original PDF' : 'Unlock PDF Downloads with Lifetime Golden (₹149)'}
           >
@@ -682,11 +707,14 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
                 </span>
               </>
             ) : (
-              <>
-                <Download className="w-3.5 h-3.5 text-white shrink-0" />
-                <span className="text-[11px] sm:text-xs text-white font-bold">Unlock</span>
-                <Lock className="w-3 h-3 text-white shrink-0" />
-              </>
+              <div className="flex items-center gap-1 min-[380px]:gap-2 sm:gap-2.5">
+                <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white shrink-0 stroke-[2.3]" />
+                <span className="h-3.5 sm:h-4 w-[1.5px] bg-white/45 rounded-full shrink-0" aria-hidden="true" />
+                <span className="text-[11px] min-[380px]:text-xs sm:text-sm font-bold text-white tracking-normal leading-none">
+                  Unlock Premium
+                </span>
+                <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white shrink-0 stroke-[2.3]" />
+              </div>
             )}
           </button>
 
@@ -763,8 +791,8 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           ref={containerRef}
           className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 flex flex-col items-center bg-[#060913] relative min-h-[400px]"
         >
-          {/* 1. Loading Screen: Displayed while the PDF document or first page is loading */}
-          {(loading || !isFirstPageRendered) && !renderError && (
+          {/* 1. Loading Screen: Displayed while the PDF document is being retrieved and parsed */}
+          {loading && !renderError && !pdfDoc && (
             <div className="flex flex-col items-center justify-center py-24 sm:py-36 text-center max-w-md mx-auto px-4 animate-fade-in z-20">
               <div className="relative mb-6">
                 <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-blue-500/30 to-indigo-500/30 blur-lg animate-pulse" />
@@ -817,9 +845,7 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           {/* 3. Continuous Vertical Scrolling Pages List (Page 1 -> Page 2 -> Page 3 ...) */}
           {pdfDoc && !renderError && (
             <div
-              className={`w-full flex flex-col items-center gap-6 sm:gap-8 pb-16 transition-opacity duration-300 ${
-                isFirstPageRendered && !loading ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              }`}
+              className="w-full flex flex-col items-center gap-6 sm:gap-8 pb-16 transition-opacity duration-300 opacity-100"
             >
               {Array.from({ length: numPages }).map((_, idx) => {
                 const pageNum = idx + 1;

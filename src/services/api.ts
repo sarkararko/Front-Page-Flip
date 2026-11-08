@@ -48,11 +48,16 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   const apiBase = getApiBaseUrl();
   const url = endpoint.startsWith('http') ? endpoint : `${apiBase}${endpoint}`;
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
   try {
     const res = await fetch(url, {
       ...options,
       headers,
+      signal: options.signal || controller.signal,
     });
+    clearTimeout(timeoutId);
     if (res.redirected && res.url.includes('/login')) {
       throw new Error('401 Unauthorized: Session is expired or unauthorized. Please re-authenticate.');
     }
@@ -67,8 +72,9 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     }
     return null;
   } catch (err: any) {
+    clearTimeout(timeoutId);
     // If server returned an HTTP error, propagate it
-    if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
+    if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('aborted')) {
       throw err;
     }
     return null;
@@ -755,7 +761,11 @@ export const ApiService = {
               p.topic.toLowerCase().includes(q)
           );
         }
-        list.forEach((p) => StorageService.savePdf(p));
+        if (!params?.subjectId && !params?.searchQuery && !params?.topic) {
+          StorageService.setPdfs(list);
+        } else {
+          list.forEach((p) => StorageService.savePdf(p));
+        }
         return list;
       }
     } catch {
@@ -889,10 +899,13 @@ export const ApiService = {
             onProgress?.(100, 'done');
 
             const backendBase = getBackendBaseUrl();
+            const viewUrl = backendBase
+              ? `${backendBase}/api/v1/pdfs/${backendDoc.id}/view`
+              : `/api/v1/pdfs/${backendDoc.id}/view`;
             const downloadUrl = backendBase
               ? `${backendBase}/api/v1/pdfs/${backendDoc.id}/download`
               : `/api/v1/pdfs/${backendDoc.id}/download`;
-            const finalFileUrl = backendDoc.cloudinarySecureUrl || downloadUrl;
+            const finalFileUrl = backendDoc.cloudinarySecureUrl || viewUrl;
 
             const mapped: PdfResource = {
               id: backendDoc.id,
@@ -907,6 +920,9 @@ export const ApiService = {
               fileSize: backendDoc.fileSize || '1.0 MB',
               fileName: backendDoc.fileName || `${backendDoc.title || title}.pdf`,
               fileUrl: finalFileUrl,
+              viewUrl,
+              downloadUrl,
+              cloudinarySecureUrl: backendDoc.cloudinarySecureUrl || undefined,
               thumbnailUrl: backendDoc.thumbnailUrl || undefined,
               uploadDate: backendDoc.createdAt
                 ? backendDoc.createdAt.split('T')[0]

@@ -211,7 +211,21 @@ export const StorageService = {
 
   // --- PDFS (Genuine Database Storage) ---
   getPdfs(): PdfResource[] {
-    const pdfs = readFromStorage<PdfResource[]>(PDFS_STORAGE_KEY, INITIAL_PDFS);
+    const rawPdfs = readFromStorage<PdfResource[]>(PDFS_STORAGE_KEY, INITIAL_PDFS);
+    // Purge any legacy sample or demo PDFs so only authentic admin-uploaded PDFs appear
+    const pdfs = rawPdfs.filter(
+      (p) =>
+        p &&
+        p.id &&
+        !p.id.startsWith('demo-') &&
+        !p.id.startsWith('sample-') &&
+        !p.id.startsWith('pdf-demo-') &&
+        !p.id.startsWith('pdf-sample-')
+    );
+    if (pdfs.length !== rawPdfs.length) {
+      writeToStorage(PDFS_STORAGE_KEY, pdfs);
+    }
+
     const subjects = readFromStorage<Subject[]>(SUBJECTS_STORAGE_KEY, []);
     return pdfs.map((p) => {
       const targetSub = subjects.find(
@@ -225,6 +239,19 @@ export const StorageService = {
         educationalCategory: targetSub?.educationalCategory || p.educationalCategory || 'COLLEGE',
       };
     });
+  },
+
+  setPdfs(pdfs: PdfResource[]): void {
+    const cleanList = (pdfs || []).filter(
+      (p) =>
+        p &&
+        p.id &&
+        !p.id.startsWith('demo-') &&
+        !p.id.startsWith('sample-') &&
+        !p.id.startsWith('pdf-demo-') &&
+        !p.id.startsWith('pdf-sample-')
+    );
+    writeToStorage(PDFS_STORAGE_KEY, cleanList);
   },
 
   getPdfById(id: string): PdfResource | undefined {

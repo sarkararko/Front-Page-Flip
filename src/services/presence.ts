@@ -14,11 +14,15 @@ export const PresenceService = {
    * Gracefully falls back to local user store on any network or server error.
    */
   async getStudentCounts(): Promise<{ activeCount: number; totalStudents: number }> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
     try {
       const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/presence/active-students-count?window=5`, {
         headers: { Accept: 'application/json' },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       if (res.ok) {
         const data: PresenceResponse = await res.json();
         const active = typeof data.activeCount === 'number' ? data.activeCount : (data.count ?? 0);
@@ -26,6 +30,7 @@ export const PresenceService = {
         return { activeCount: active, totalStudents: total };
       }
     } catch {
+      clearTimeout(timeoutId);
       // Backend offline, sleeping or network unreachable: use local fallback
     }
 
