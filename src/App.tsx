@@ -166,6 +166,25 @@ export default function App() {
             provider,
             avatar: name ? name.slice(0, 2).toUpperCase() : 'ST',
           };
+
+          // If rendered inside an OAuth popup window, communicate with opener and close popup
+          if (window.opener && !window.opener.closed) {
+            try {
+              window.opener.postMessage(
+                {
+                  type: 'FPF_AUTH_SUCCESS',
+                  token,
+                  user: studentUser,
+                },
+                '*'
+              );
+              window.close();
+              return;
+            } catch (err) {
+              console.warn('Could not postMessage to opener:', err);
+            }
+          }
+
           StorageService.addUser(studentUser);
           StorageService.setCurrentUser(studentUser);
           StorageService.setSessionToken(token);
@@ -188,6 +207,24 @@ export default function App() {
         const query = hash.split('?')[1] || '';
         const params = new URLSearchParams(query);
         const errMsg = params.get('message') || 'Social authentication failed or was canceled.';
+
+        // If rendered inside an OAuth popup window, notify opener and close
+        if (window.opener && !window.opener.closed) {
+          try {
+            window.opener.postMessage(
+              {
+                type: 'FPF_AUTH_ERROR',
+                message: errMsg,
+              },
+              '*'
+            );
+            window.close();
+            return;
+          } catch (err) {
+            console.warn('Could not postMessage to opener:', err);
+          }
+        }
+
         setAuthError(errMsg);
         window.history.replaceState(null, '', window.location.pathname);
       }

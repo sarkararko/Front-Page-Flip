@@ -214,7 +214,12 @@ app.get(['/api/golden/status', '/api/v1/golden/status', '/api/status', '/api/v1/
 // Proxy other backend requests to Render Spring Boot backend
 const RENDER_BACKEND = 'https://frontpageflip-backend.onrender.com';
 app.use(async (req, res, next) => {
-  if (req.path.startsWith('/api/v1/') || req.path.startsWith('/api/')) {
+  if (
+    req.path.startsWith('/api/v1/') ||
+    req.path.startsWith('/api/') ||
+    req.path.startsWith('/oauth2/') ||
+    req.path.startsWith('/login/oauth2/')
+  ) {
     try {
       const targetUrl = `${RENDER_BACKEND}${req.originalUrl}`;
       const headers: Record<string, string> = {};

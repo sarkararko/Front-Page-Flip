@@ -29,18 +29,34 @@ public class CustomOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
     @Override
     public OAuth2AuthorizationRequest resolve(HttpServletRequest request) {
         OAuth2AuthorizationRequest req = defaultResolver.resolve(request);
-        return customize(req);
+        return customize(req, request);
     }
 
     @Override
     public OAuth2AuthorizationRequest resolve(HttpServletRequest request, String clientRegistrationId) {
         OAuth2AuthorizationRequest req = defaultResolver.resolve(request, clientRegistrationId);
-        return customize(req);
+        return customize(req, request);
     }
 
-    private OAuth2AuthorizationRequest customize(OAuth2AuthorizationRequest authRequest) {
+    private OAuth2AuthorizationRequest customize(OAuth2AuthorizationRequest authRequest, HttpServletRequest request) {
         if (authRequest == null) {
             return null;
+        }
+
+        // Intercept frontend_url or redirect_to from request and store in HTTP session for OAuth2 success/failure handlers
+        if (request != null) {
+            String frontendUrlParam = request.getParameter("frontend_url");
+            if (frontendUrlParam == null || frontendUrlParam.isBlank()) {
+                frontendUrlParam = request.getParameter("redirect_to");
+            }
+            if (frontendUrlParam != null && !frontendUrlParam.isBlank()) {
+                String clean = frontendUrlParam.trim();
+                if (clean.startsWith("http://") || clean.startsWith("https://")) {
+                    try {
+                        request.getSession(true).setAttribute("oauth_frontend_url", clean);
+                    } catch (Exception ignored) {}
+                }
+            }
         }
 
         Map<String, Object> additionalParameters = new HashMap<>(authRequest.getAdditionalParameters());

@@ -20,7 +20,17 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException {
-        String base = (frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl.trim() : "https://frontpageflip.vercel.app";
+        String base = null;
+        try {
+            jakarta.servlet.http.HttpSession session = request.getSession(false);
+            if (session != null) {
+                base = (String) session.getAttribute("oauth_frontend_url");
+            }
+        } catch (Exception ignored) {}
+
+        if (base == null || base.isBlank()) {
+            base = (frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl.trim() : "https://frontpageflip.vercel.app";
+        }
         if (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }

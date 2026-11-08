@@ -206,47 +206,51 @@ public class EmailService {
             return false;
         }
 
-        String effectiveFrom = resolveEffectiveSender();
+        List<String> sendersToTry = getSenderCandidates();
         List<String> attemptedErrors = new ArrayList<>();
+        String candidateApiKey = getEffectiveApiKey();
 
         // Tier 1: Attempt Brevo v3 Transactional Email REST API over HTTPS (Port 443)
-        // This is universally open on Render and cloud providers where TCP ports 587/25 are filtered.
-        String candidateApiKey = getEffectiveApiKey();
+        // Try each verified sender candidate (e.g. frontpageflipofficial@gmail.com, then arkaparna.ds@gmail.com)
         if (candidateApiKey != null && !candidateApiKey.isBlank()) {
-            try {
-                boolean apiSuccess = sendViaBrevoRestApi(candidateApiKey, toEmail, recipientName, subject, htmlContent, plainText, effectiveFrom);
-                if (apiSuccess) {
-                    return true;
+            for (String senderEmail : sendersToTry) {
+                try {
+                    boolean apiSuccess = sendViaBrevoRestApi(candidateApiKey, toEmail, recipientName, subject, htmlContent, plainText, senderEmail);
+                    if (apiSuccess) {
+                        return true;
+                    }
+                } catch (Exception e) {
+                    String errorDetail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    attemptedErrors.add("Brevo HTTPS API (" + senderEmail + "): " + errorDetail);
+                    log.warn("Brevo HTTPS REST API attempt with sender {} did not succeed: {}", senderEmail, errorDetail);
                 }
-            } catch (Exception e) {
-                String errorDetail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                attemptedErrors.add("Brevo HTTPS API: " + errorDetail);
-                log.warn("Brevo HTTPS REST API attempt did not succeed: {}. Proceeding to Brevo SMTP relay.", errorDetail);
             }
         }
 
         // Tier 2: Attempt Brevo SMTP Relay over TCP (ports: configured port, 2525, 465, 587)
         List<Integer> portsToTry = getPortsToTry();
-        for (int port : portsToTry) {
-            try {
-                boolean smtpSuccess = sendViaBrevoSmtp(port, toEmail, effectiveFrom, subject, htmlContent, plainText);
-                if (smtpSuccess) {
-                    return true;
+        for (String senderEmail : sendersToTry) {
+            for (int port : portsToTry) {
+                try {
+                    boolean smtpSuccess = sendViaBrevoSmtp(port, toEmail, senderEmail, subject, htmlContent, plainText);
+                    if (smtpSuccess) {
+                        return true;
+                    }
+                } catch (AuthenticationFailedException authEx) {
+                    String msg = "Brevo SMTP authentication rejected credentials (check MAIL_USERNAME and MAIL_PASSWORD/SMTP key).";
+                    attemptedErrors.add("Port " + port + ": " + msg);
+                    log.error("[Brevo SMTP] {} Recipient: {}", msg, maskEmail(toEmail));
+                    break; // No need to retry other ports on auth rejection
+                } catch (SendFailedException sendEx) {
+                    String msg = "Brevo SMTP rejected dispatch for sender '" + senderEmail + "': " + sendEx.getMessage();
+                    attemptedErrors.add("Port " + port + ": " + msg);
+                    log.warn("[Brevo SMTP] {}", msg);
+                    break; // Try next sender candidate
+                } catch (Exception ex) {
+                    String msg = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+                    attemptedErrors.add("Port " + port + " (" + senderEmail + "): " + msg);
+                    log.warn("[Brevo SMTP] Port {} delivery failed: {}", port, msg);
                 }
-            } catch (AuthenticationFailedException authEx) {
-                String msg = "Brevo SMTP authentication rejected credentials (check MAIL_USERNAME and MAIL_PASSWORD/SMTP key).";
-                attemptedErrors.add("Port " + port + ": " + msg);
-                log.error("[Brevo SMTP] {} Recipient: {}", msg, maskEmail(toEmail));
-                break; // No need to retry other ports on auth rejection
-            } catch (SendFailedException sendEx) {
-                String msg = "Brevo SMTP rejected dispatch (verify that sender '" + effectiveFrom + "' is validated in your Brevo account).";
-                attemptedErrors.add("Port " + port + ": " + msg);
-                log.error("[Brevo SMTP] {} Error: {}", msg, sendEx.getMessage());
-                break;
-            } catch (Exception ex) {
-                String msg = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
-                attemptedErrors.add("Port " + port + ": " + msg);
-                log.warn("[Brevo SMTP] Port {} delivery failed: {}", port, msg);
             }
         }
 
@@ -384,18 +388,27 @@ public class EmailService {
         return null;
     }
 
-    public String resolveEffectiveSender() {
+    public List<String> getSenderCandidates() {
+        Set<String> senders = new LinkedHashSet<>();
         if (fromEmail != null && !fromEmail.isBlank() && fromEmail.contains("@") &&
                 !fromEmail.contains("frontpageflip.com") && !fromEmail.contains("yourdomain.com")) {
-            return fromEmail.trim();
+            senders.add(fromEmail.trim());
         }
         if (creatorEmail != null && !creatorEmail.isBlank() && creatorEmail.contains("@")) {
-            return creatorEmail.trim();
+            senders.add(creatorEmail.trim());
         }
         if (mailUsername != null && mailUsername.contains("@") && !mailUsername.contains("smtp-brevo.com")) {
-            return mailUsername.trim();
+            senders.add(mailUsername.trim());
         }
-        return "frontpageflipofficial@gmail.com";
+        if (senders.isEmpty()) {
+            senders.add("frontpageflipofficial@gmail.com");
+        }
+        return new ArrayList<>(senders);
+    }
+
+    public String resolveEffectiveSender() {
+        List<String> candidates = getSenderCandidates();
+        return candidates.isEmpty() ? "frontpageflipofficial@gmail.com" : candidates.get(0);
     }
 
     private String buildBrevoJsonPayload(String fromEmail, String fromName, String toEmail,

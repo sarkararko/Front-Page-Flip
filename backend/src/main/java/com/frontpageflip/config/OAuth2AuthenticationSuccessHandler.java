@@ -83,11 +83,24 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             }
         }
 
+        // Determine effective frontend URL: check session attribute 'oauth_frontend_url' first, else fallback to configured frontendUrl
+        String effectiveFrontend = null;
+        try {
+            jakarta.servlet.http.HttpSession session = request.getSession(false);
+            if (session != null) {
+                effectiveFrontend = (String) session.getAttribute("oauth_frontend_url");
+            }
+        } catch (Exception ignored) {}
+
+        if (effectiveFrontend == null || effectiveFrontend.isBlank()) {
+            effectiveFrontend = frontendUrl;
+        }
+
         if (email == null || email.isBlank()) {
             String errorMsg = "github".equalsIgnoreCase(provider)
                     ? "No verified email address found on your GitHub account. Please ensure your GitHub account has a verified email address."
                     : "Email address was not provided by Google account.";
-            String errorUrl = UriComponentsBuilder.fromUriString(sanitizeFrontendUrl(frontendUrl))
+            String errorUrl = UriComponentsBuilder.fromUriString(sanitizeFrontendUrl(effectiveFrontend))
                     .fragment("auth-error?message=" + URLEncoder.encode(errorMsg, StandardCharsets.UTF_8))
                     .build().toUriString();
             getRedirectStrategy().sendRedirect(request, response, errorUrl);
@@ -107,7 +120,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             // STRICT SECURITY: Social OAuth must NEVER authenticate or grant administrator privileges
             if (user.getRole() == Role.ADMIN) {
                 log.warn("Blocked {} login attempt for designated administrator account: {}", provider, email);
-                String errorUrl = UriComponentsBuilder.fromUriString(sanitizeFrontendUrl(frontendUrl))
+                String errorUrl = UriComponentsBuilder.fromUriString(sanitizeFrontendUrl(effectiveFrontend))
                         .fragment("auth-error?message=" + URLEncoder.encode("Administrator accounts must sign in using the dedicated Administrator Portal.", StandardCharsets.UTF_8))
                         .build().toUriString();
                 getRedirectStrategy().sendRedirect(request, response, errorUrl);
@@ -136,7 +149,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String jwt = jwtService.generateToken(user);
 
         // Redirect back to frontend with JWT and student profile info
-        String targetUrl = UriComponentsBuilder.fromUriString(sanitizeFrontendUrl(frontendUrl))
+        String targetUrl = UriComponentsBuilder.fromUriString(sanitizeFrontendUrl(effectiveFrontend))
                 .fragment(String.format("auth-success?token=%s&userId=%s&email=%s&name=%s&role=student&provider=%s",
                         URLEncoder.encode(jwt, StandardCharsets.UTF_8),
                         URLEncoder.encode(user.getId(), StandardCharsets.UTF_8),

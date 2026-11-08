@@ -262,11 +262,71 @@ export const ApiService = {
   async socialLogin(provider: 'google' | 'github'): Promise<{ user: User; token: string }> {
     if (typeof window !== 'undefined') {
       const backendRoot = getBackendBaseUrl() || 'https://frontpageflip-backend.onrender.com';
-      // In live production, route directly to Spring Boot OAuth 2.0 endpoint (/oauth2/authorization/{provider})
-      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        window.location.href = `${backendRoot}/oauth2/authorization/${provider}`;
-        return new Promise(() => {}); // Wait for redirect
+      const frontendOrigin = window.location.origin;
+      const authUrl = `${backendRoot}/oauth2/authorization/${provider}?frontend_url=${encodeURIComponent(frontendOrigin)}`;
+
+      // Calculate centered popup coordinates for a clean, professional window
+      const width = 500;
+      const height = 650;
+      const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
+      const top = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
+
+      let popup: Window | null = null;
+      try {
+        popup = window.open(
+          authUrl,
+          `fpf_${provider}_auth`,
+          `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no`
+        );
+      } catch {
+        popup = null;
       }
+
+      // If popup was blocked by browser or failed to open, fallback to full-page redirect
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        window.location.href = authUrl;
+        return new Promise(() => {}); // Wait for page navigation
+      }
+
+      // If popup opened successfully, listen for postMessage authentication result
+      return new Promise<{ user: User; token: string }>((resolve, reject) => {
+        let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+        const messageHandler = (event: MessageEvent) => {
+          if (!event.data || typeof event.data !== 'object') return;
+
+          if (event.data.type === 'FPF_AUTH_SUCCESS') {
+            cleanup();
+            const { token, user } = event.data;
+            if (user && token) {
+              StorageService.addUser(user);
+              StorageService.setCurrentUser(user);
+              StorageService.setSessionToken(token);
+              resolve({ user, token });
+            } else {
+              reject(new Error('Incomplete authentication payload received from server.'));
+            }
+          } else if (event.data.type === 'FPF_AUTH_ERROR') {
+            cleanup();
+            reject(new Error(event.data.message || 'Social authentication was canceled or failed.'));
+          }
+        };
+
+        const cleanup = () => {
+          if (pollTimer) clearInterval(pollTimer);
+          window.removeEventListener('message', messageHandler);
+        };
+
+        window.addEventListener('message', messageHandler);
+
+        // Poll every 400ms to detect if the user closed the popup window without completing authentication
+        pollTimer = setInterval(() => {
+          if (popup && popup.closed) {
+            cleanup();
+            reject(new Error('AUTHENTICATION_CANCELLED'));
+          }
+        }, 400);
+      });
     }
 
     const isGoogle = provider === 'google';
