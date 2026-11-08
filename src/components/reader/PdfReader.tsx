@@ -526,40 +526,41 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] flex flex-col text-slate-100 select-none">
+    <div className="min-h-screen bg-[#0A0E1A] flex flex-col text-slate-100 select-none overflow-x-hidden w-full max-w-full">
       {/* ================= TOP TOOLBAR ================= */}
-      <header className="sticky top-0 z-50 bg-[#141C2E] border-b border-slate-700/80 px-4 py-2.5 flex items-center justify-between shadow-md">
+      <header className="sticky top-0 z-50 bg-[#141C2E] border-b border-slate-700/80 px-2 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-1 sm:gap-2 shadow-md w-full max-w-full overflow-x-hidden">
         {/* Left: Back button & Document Title */}
-        <div className="flex items-center gap-3 max-w-[45%]">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 max-w-[32%] min-[380px]:max-w-[38%] sm:max-w-[45%] shrink">
           <button
             type="button"
             onClick={onBack}
-            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/80 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+            className="p-1 sm:p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/80 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0"
+            title="Go back"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 shrink-0" />
             <span className="hidden sm:inline">Back</span>
           </button>
 
-          <div className="h-5 w-px bg-slate-700 mx-1 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-700 mx-0.5 sm:mx-1 hidden sm:block" />
 
           {/* Thumbnails toggle */}
           <button
             type="button"
             onClick={() => setShowThumbnails(!showThumbnails)}
-            className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
               showThumbnails
                 ? 'bg-blue-600 text-white'
                 : 'text-slate-300 hover:bg-slate-700/80 hover:text-white'
             }`}
             title="Toggle Page Navigation Drawer"
           >
-            <Sidebar className="w-4 h-4" />
+            <Sidebar className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
             <span className="hidden md:inline">Pages</span>
           </button>
 
-          <div className="truncate">
-            <h1 className="text-xs sm:text-sm font-bold text-white truncate flex items-center gap-2">
-              <span className="px-1.5 py-0.5 bg-[#EF4444] text-[10px] font-black rounded shrink-0 shadow-xs">
+          <div className="truncate min-w-0">
+            <h1 className="text-[11px] sm:text-sm font-bold text-white truncate flex items-center gap-1 sm:gap-2">
+              <span className="px-1 sm:px-1.5 py-0.5 bg-[#EF4444] text-[9px] sm:text-[10px] font-black rounded shrink-0 shadow-xs">
                 PDF
               </span>
               <span className="truncate">{pdf.title}</span>
@@ -571,18 +572,18 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
         </div>
 
         {/* Center: Page Controls (Scroll to specific page) */}
-        <div className="flex items-center gap-1 sm:gap-2 bg-[#0A0E1A] px-2 sm:px-3 py-1 rounded-lg border border-slate-700 text-xs">
+        <div className="flex items-center gap-0.5 sm:gap-2 bg-[#0A0E1A] px-1 sm:px-3 py-1 rounded-lg border border-slate-700 text-xs shrink-0">
           <button
             type="button"
             disabled={currentPage <= 1 || loading}
             onClick={() => scrollToPage(Math.max(1, currentPage - 1))}
-            className="p-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+            className="p-0.5 sm:p-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
             title="Previous page (Left arrow)"
           >
             <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
-          <div className="flex items-center gap-1 font-mono font-medium text-[11px] sm:text-xs">
+          <div className="flex items-center gap-0.5 sm:gap-1 font-mono font-medium text-[10px] sm:text-xs">
             <input
               type="number"
               min={1}
@@ -593,16 +594,16 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
                 const val = parseInt(e.target.value);
                 if (val >= 1 && val <= numPages) scrollToPage(val);
               }}
-              className="w-8 sm:w-10 bg-slate-800 text-center rounded text-white py-0.5 outline-hidden border border-slate-700 focus:border-blue-500"
+              className="w-6 sm:w-10 bg-slate-800 text-center rounded text-white py-0.5 text-[11px] sm:text-xs outline-hidden border border-slate-700 focus:border-blue-500"
             />
-            <span className="text-slate-400">/ {numPages}</span>
+            <span className="text-slate-400">/{numPages}</span>
           </div>
 
           <button
             type="button"
             disabled={currentPage >= numPages || loading}
             onClick={() => scrollToPage(Math.min(numPages, currentPage + 1))}
-            className="p-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
+            className="p-0.5 sm:p-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:hover:text-slate-300 cursor-pointer"
             title="Next page (Right arrow)"
           >
             <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -610,7 +611,7 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
         </div>
 
         {/* Right: Actions (Zoom, Read Later, Download, Fullscreen) */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Zoom controls */}
           <div className="hidden lg:flex items-center gap-1 bg-[#0A0E1A] px-2 py-1 rounded-lg border border-slate-700 text-xs">
             <button
@@ -640,14 +641,14 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           <button
             type="button"
             onClick={() => onToggleReadLater(pdf.id)}
-            className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+            className={`p-1 sm:p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer shrink-0 ${
               isReadLater
                 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                 : 'text-slate-300 hover:bg-slate-700/80 hover:text-white'
             }`}
             title={isReadLater ? 'Saved in Read Later' : 'Save to Read Later'}
           >
-            <Bookmark className={`w-4 h-4 ${isReadLater ? 'fill-amber-400 text-amber-400' : ''}`} />
+            <Bookmark className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isReadLater ? 'fill-amber-400 text-amber-400' : ''}`} />
             <span className="hidden xl:inline">{isReadLater ? 'Saved' : 'Save'}</span>
           </button>
 
@@ -655,17 +656,17 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           <button
             type="button"
             onClick={handleShare}
-            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/80 transition-colors cursor-pointer"
+            className="p-1 sm:p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/80 transition-colors cursor-pointer shrink-0"
             title="Copy document link"
           >
-            {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+            {copiedLink ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
           </button>
 
           {/* Golden Download Button */}
           <button
             type="button"
             onClick={handleDownloadClick}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
+            className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-sm shrink-0 whitespace-nowrap ${
               canDownload
                 ? 'bg-[#1677FF] hover:bg-[#0E63DC] text-white'
                 : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white'
@@ -674,14 +675,22 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           >
             {canDownload ? (
               <>
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Download</span>
+                <Download className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-[11px] sm:text-xs">
+                  <span className="hidden min-[380px]:inline sm:hidden">Download</span>
+                  <span className="hidden sm:inline">Download</span>
+                </span>
               </>
             ) : (
               <>
-                <Crown className="w-3.5 h-3.5 text-amber-200 fill-amber-200" />
-                <span>Unlock (₹149)</span>
-                <Lock className="w-3 h-3 text-amber-200" />
+                <Crown className="w-3.5 h-3.5 text-amber-200 fill-amber-200 shrink-0" />
+                <span className="text-[11px] sm:text-xs">
+                  <span className="sm:hidden">
+                    <span className="hidden min-[400px]:inline">Unlock </span>₹149
+                  </span>
+                  <span className="hidden sm:inline">Unlock (₹149)</span>
+                </span>
+                <Lock className="w-3 h-3 text-amber-200 shrink-0 hidden min-[360px]:inline" />
               </>
             )}
           </button>
@@ -690,7 +699,7 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/80 transition-colors hidden sm:flex cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/80 transition-colors hidden sm:flex cursor-pointer shrink-0"
             title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
