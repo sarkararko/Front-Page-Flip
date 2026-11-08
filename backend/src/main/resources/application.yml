@@ -7,8 +7,8 @@ spring:
     name: frontpageflip-backend
   datasource:
     url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:defaultdb}?sslMode=REQUIRED&useSSL=${DB_USE_SSL:true}&requireSSL=${DB_REQUIRE_SSL:true}&verifyServerCertificate=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}}
-    username: ${DB_USERNAME:avnadmin}
-    password: ${DB_PASSWORD:}
+    username: ${DB_USERNAME:${DB_USER:${SPRING_DATASOURCE_USERNAME:avnadmin}}}
+    password: ${DB_PASSWORD:${DB_PASS:${SPRING_DATASOURCE_PASSWORD:}}}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -74,6 +74,7 @@ app:
     s3-bucket: ${S3_BUCKET:}
     s3-region: ${AWS_REGION:us-east-1}
   cloudinary:
+    url: ${CLOUDINARY_URL:}
     cloud-name: ${CLOUDINARY_CLOUD_NAME:}
     api-key: ${CLOUDINARY_API_KEY:}
     api-secret: ${CLOUDINARY_API_SECRET:}

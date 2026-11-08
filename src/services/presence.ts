@@ -15,7 +15,7 @@ export const PresenceService = {
    */
   async getStudentCounts(): Promise<{ activeCount: number; totalStudents: number }> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
     try {
       const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/presence/active-students-count?window=5`, {
@@ -27,6 +27,9 @@ export const PresenceService = {
         const data: PresenceResponse = await res.json();
         const active = typeof data.activeCount === 'number' ? data.activeCount : (data.count ?? 0);
         const total = typeof data.totalStudents === 'number' ? data.totalStudents : (data.count ?? 0);
+        try {
+          sessionStorage.setItem('fpf_last_known_student_count', String(total));
+        } catch {}
         return { activeCount: active, totalStudents: total };
       }
     } catch {
@@ -34,12 +37,19 @@ export const PresenceService = {
       // Backend offline, sleeping or network unreachable: use local fallback
     }
 
+    // If we previously fetched a live count from Aiven MySQL, preserve it instead of dropping to 0
+    let cachedCount: number | null = null;
+    try {
+      const stored = sessionStorage.getItem('fpf_last_known_student_count');
+      if (stored) cachedCount = parseInt(stored, 10);
+    } catch {}
+
     const students = StorageService.getUsers().filter((u) => u.role === 'student');
     const currentUser = StorageService.getCurrentUser();
     const active = currentUser && currentUser.role === 'student' ? 1 : 0;
     return {
       activeCount: active,
-      totalStudents: students.length,
+      totalStudents: cachedCount !== null && !isNaN(cachedCount) ? cachedCount : students.length,
     };
   },
 

@@ -68,10 +68,15 @@ public class PdfController {
     }
 
     @GetMapping("/{id}/view")
-    public ResponseEntity<Resource> viewPdf(@PathVariable String id) {
+    public ResponseEntity<?> viewPdf(@PathVariable String id) {
         PdfResponse info = pdfService.getPdfById(id, null);
-        Resource file = pdfService.getPdfFileResource(id);
+        if (info.getCloudinarySecureUrl() != null && !info.getCloudinarySecureUrl().isBlank()) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FOUND)
+                    .location(java.net.URI.create(info.getCloudinarySecureUrl()))
+                    .build();
+        }
 
+        Resource file = pdfService.getPdfFileResource(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + info.getFileName() + "\"")
@@ -79,7 +84,7 @@ public class PdfController {
     }
 
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> downloadPdf(@PathVariable String id, Authentication authentication) {
+    public ResponseEntity<?> downloadPdf(@PathVariable String id, Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new UnauthorizedException("Authentication required to download study materials.");
         }
@@ -93,8 +98,13 @@ public class PdfController {
         }
 
         PdfResponse info = pdfService.getPdfById(id, currentUserId);
-        Resource file = pdfService.getPdfFileResource(id);
+        if (info.getCloudinarySecureUrl() != null && !info.getCloudinarySecureUrl().isBlank()) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FOUND)
+                    .location(java.net.URI.create(info.getCloudinarySecureUrl()))
+                    .build();
+        }
 
+        Resource file = pdfService.getPdfFileResource(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + info.getFileName() + "\"")

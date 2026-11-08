@@ -21,6 +21,9 @@ public class CloudinaryService {
     private static final Logger logger = LoggerFactory.getLogger(CloudinaryService.class);
     private static final long MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 
+    @Value("${app.cloudinary.url:${CLOUDINARY_URL:}}")
+    private String cloudinaryUrl;
+
     @Value("${app.cloudinary.cloud-name:${CLOUDINARY_CLOUD_NAME:}}")
     private String cloudName;
 
@@ -37,6 +40,18 @@ public class CloudinaryService {
 
     @PostConstruct
     public void init() {
+        String effectiveUrl = (cloudinaryUrl != null && !cloudinaryUrl.isBlank()) ? cloudinaryUrl : System.getenv("CLOUDINARY_URL");
+        if (effectiveUrl != null && !effectiveUrl.isBlank() && effectiveUrl.startsWith("cloudinary://")) {
+            try {
+                this.cloudinary = new Cloudinary(effectiveUrl.trim());
+                logger.info("Cloudinary PDF service initialized successfully via CLOUDINARY_URL. folder='{}'",
+                        folder != null ? folder.trim() : "front-page-flip/pdfs");
+                return;
+            } catch (Exception e) {
+                logger.error("Failed to initialize Cloudinary with CLOUDINARY_URL: {}", e.getMessage());
+            }
+        }
+
         if (isConfigured()) {
             Map<String, Object> config = new HashMap<>();
             config.put("cloud_name", cloudName.trim());
@@ -45,14 +60,21 @@ public class CloudinaryService {
             config.put("secure", true);
             config.put("timeout", 90000); // 90 seconds timeout for large PDFs
             this.cloudinary = new Cloudinary(config);
-            logger.info("Cloudinary PDF service initialized successfully. cloud_name='{}', folder='{}', api_key=[CONFIGURED]",
+            logger.info("Cloudinary PDF service initialized successfully via credentials. cloud_name='{}', folder='{}', api_key=[CONFIGURED]",
                     cloudName.trim(), folder != null ? folder.trim() : "front-page-flip/pdfs");
         } else {
-            logger.warn("Cloudinary credentials are not configured. CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, or CLOUDINARY_API_SECRET missing. PDF operations will fallback to local storage.");
+            logger.warn("Cloudinary credentials are not configured (CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET missing). PDF operations will fallback to local storage.");
         }
     }
 
     public boolean isConfigured() {
+        if (this.cloudinary != null) {
+            return true;
+        }
+        String effectiveUrl = (cloudinaryUrl != null && !cloudinaryUrl.isBlank()) ? cloudinaryUrl : System.getenv("CLOUDINARY_URL");
+        if (effectiveUrl != null && !effectiveUrl.isBlank() && effectiveUrl.startsWith("cloudinary://")) {
+            return true;
+        }
         return cloudName != null && !cloudName.isBlank()
                 && apiKey != null && !apiKey.isBlank()
                 && apiSecret != null && !apiSecret.isBlank();

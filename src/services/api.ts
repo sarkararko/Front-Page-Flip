@@ -8,7 +8,7 @@ import { PdfFileStore } from './pdfFileStore';
  */
 export function getBackendBaseUrl(): string {
   if (typeof window !== 'undefined') {
-    const custom = (import.meta as any).env?.VITE_API_URL;
+    const custom = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_API_BASE_URL;
     if (custom) return custom.replace(/\/+$/, '');
     // In local dev, vite preview, or AI Studio preview container, route through server.ts proxy
     if (
@@ -19,10 +19,13 @@ export function getBackendBaseUrl(): string {
     ) {
       return '';
     }
-    // Only on remote static hosts without server.ts (e.g. Vercel)
-    if (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('github.io')) {
-      return 'https://frontpageflip-backend.onrender.com';
+    // On Vercel, /api/* requests are automatically rewritten and proxied to Render via vercel.json.
+    // Using relative URLs ('') eliminates cross-origin CORS blocks and third-party restrictions across all mobile/desktop browsers!
+    if (window.location.hostname.includes('vercel.app')) {
+      return '';
     }
+    // Remote static hosts without server.ts or rewrites
+    return 'https://frontpageflip-backend.onrender.com';
   }
   return '';
 }
@@ -49,7 +52,8 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   const url = endpoint.startsWith('http') ? endpoint : `${apiBase}${endpoint}`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  // 25s timeout allows Render free-tier cold starts to complete without premature abortion
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
 
   try {
     const res = await fetch(url, {

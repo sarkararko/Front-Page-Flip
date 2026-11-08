@@ -60,6 +60,6 @@ public class PresenceService {
     }
 
     public long getTotalRegisteredStudentCount() {
-        return userRepository.countByRole(Role.STUDENT);
+        return userRepository.countRegisteredStudents();
     }
 }

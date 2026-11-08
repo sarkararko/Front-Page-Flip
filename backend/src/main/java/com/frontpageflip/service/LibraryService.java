@@ -132,7 +132,7 @@ public class LibraryService {
     public AdminStatsResponse getAdminStats() {
         long totalSubjects = subjectRepository.count();
         long totalPdfs = pdfRepository.count();
-        long totalStudents = userRepository.countByRole(Role.STUDENT);
+        long totalStudents = userRepository.countRegisteredStudents();
         return new AdminStatsResponse(totalSubjects, totalPdfs, totalStudents, totalPdfs * 4);
     }
 }

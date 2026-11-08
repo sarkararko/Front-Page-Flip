@@ -93,6 +93,25 @@ export default function App() {
       setSubjects(subs);
       setPdfs(pList);
       StorageService.setSubjects(subs);
+
+      // If backend was sleeping on cold start and returned empty in a fresh browser session,
+      // silently retry once in the background after 8 seconds to seamlessly synchronize live MySQL data
+      if (subs.length === 0 && pList.length === 0) {
+        setTimeout(async () => {
+          try {
+            const [freshSubs, freshPList] = await Promise.all([
+              ApiService.getSubjects(),
+              ApiService.getPdfs(),
+            ]);
+            if (freshSubs.length > 0 || freshPList.length > 0) {
+              setSubjects(freshSubs);
+              setPdfs(freshPList);
+            }
+          } catch {
+            // silent background retry
+          }
+        }, 8000);
+      }
     } catch {
       // Fallback
     } finally {

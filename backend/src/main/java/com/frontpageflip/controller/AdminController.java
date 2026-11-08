@@ -40,7 +40,7 @@ public class AdminController {
 
     @GetMapping("/students")
     public ResponseEntity<List<UserDto>> getRegisteredStudents() {
-        List<User> students = userRepository.findByRoleOrderByCreatedAtDesc(Role.STUDENT);
+        List<User> students = userRepository.findActiveVerifiedStudents();
         List<UserDto> dtos = students.stream().map(u -> {
             UserDto dto = new UserDto(u.getId(), u.getName(), u.getEmail(), u.getRole(), u.getAccountStatus(), u.isEmailVerified());
             String initials = (u.getName() != null && !u.getName().isBlank())

@@ -20,6 +20,12 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByPaymentOrderId(String paymentOrderId);
 
+    @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.frontpageflip.model.Role.STUDENT AND u.emailVerified = true AND u.accountStatus = 'ACTIVE'")
+    long countRegisteredStudents();
+
+    @Query("SELECT u FROM User u WHERE u.role = com.frontpageflip.model.Role.STUDENT AND u.emailVerified = true AND u.accountStatus = 'ACTIVE' ORDER BY u.createdAt DESC")
+    List<User> findActiveVerifiedStudents();
+
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.frontpageflip.model.Role.STUDENT AND u.accountStatus = 'ACTIVE' AND u.lastActiveAt >= :activeThreshold")
     long countActiveStudents(@Param("activeThreshold") Instant activeThreshold);
 }
