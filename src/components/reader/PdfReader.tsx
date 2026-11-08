@@ -683,14 +683,9 @@ export const PdfReader: React.FC<PdfReaderProps> = ({
               </>
             ) : (
               <>
-                <Crown className="w-3.5 h-3.5 text-amber-200 fill-amber-200 shrink-0" />
-                <span className="text-[11px] sm:text-xs">
-                  <span className="sm:hidden">
-                    <span className="hidden min-[400px]:inline">Unlock </span>₹149
-                  </span>
-                  <span className="hidden sm:inline">Unlock (₹149)</span>
-                </span>
-                <Lock className="w-3 h-3 text-amber-200 shrink-0 hidden min-[360px]:inline" />
+                <Download className="w-3.5 h-3.5 text-white shrink-0" />
+                <span className="text-[11px] sm:text-xs text-white font-bold">Unlock</span>
+                <Lock className="w-3 h-3 text-white shrink-0" />
               </>
             )}
           </button>
