@@ -190,7 +190,11 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* 1. Hero Search Section */}
       <HeroSearch
         userName={currentUser.name}
+        subjects={subjects}
+        pdfs={recentlyAddedPdfs}
         onSearch={onSearch}
+        onSelectSubject={onSelectSubject}
+        onViewPdf={onViewPdf}
       />
 
       {/* Quick-Access Row: Popular Subjects, Latest PDFs, Study Collections */}
