@@ -18,7 +18,7 @@ public class AuthDtos {
         private boolean rememberMe;
 
         public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
+        public void setEmail(String email) { this.email = email != null ? email.trim().toLowerCase() : null; }
 
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
@@ -41,13 +41,55 @@ public class AuthDtos {
         private String password;
 
         public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
+        public void setName(String name) { this.name = name != null ? name.trim() : null; }
+
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email != null ? email.trim().toLowerCase() : null; }
+
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+    }
+
+    public static class CheckEmailRequest {
+        @NotBlank(message = "Email is required")
+        @Email(message = "Invalid email format")
+        private String email;
+
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email != null ? email.trim().toLowerCase() : null; }
+    }
+
+    public static class EmailAvailabilityResponse {
+        private boolean exists;
+        private boolean available;
+        private boolean reserved;
+        private String email;
+        private String message;
+
+        public EmailAvailabilityResponse() {}
+
+        public EmailAvailabilityResponse(boolean exists, boolean reserved, String email, String message) {
+            this.exists = exists;
+            this.available = !exists && !reserved;
+            this.reserved = reserved;
+            this.email = email;
+            this.message = message;
+        }
+
+        public boolean isExists() { return exists; }
+        public void setExists(boolean exists) { this.exists = exists; }
+
+        public boolean isAvailable() { return available; }
+        public void setAvailable(boolean available) { this.available = available; }
+
+        public boolean isReserved() { return reserved; }
+        public void setReserved(boolean reserved) { this.reserved = reserved; }
 
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
 
-        public String getPassword() { return password; }
-        public void setPassword(String password) { this.password = password; }
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
     }
 
     public static class SetupAdminPasswordRequest {
@@ -75,7 +117,7 @@ public class AuthDtos {
         private String token;
 
         public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
+        public void setEmail(String email) { this.email = email != null ? email.trim().toLowerCase() : null; }
 
         public String getToken() { return token; }
         public void setToken(String token) { this.token = token; }
@@ -87,7 +129,7 @@ public class AuthDtos {
         private String email;
 
         public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
+        public void setEmail(String email) { this.email = email != null ? email.trim().toLowerCase() : null; }
     }
 
     public static class ForgotPasswordRequest {
@@ -96,7 +138,7 @@ public class AuthDtos {
         private String email;
 
         public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
+        public void setEmail(String email) { this.email = email != null ? email.trim().toLowerCase() : null; }
     }
 
     public static class ResetPasswordRequest {
@@ -112,7 +154,7 @@ public class AuthDtos {
         private String newPassword;
 
         public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
+        public void setEmail(String email) { this.email = email != null ? email.trim().toLowerCase() : null; }
 
         public String getToken() { return token; }
         public void setToken(String token) { this.token = token; }
@@ -130,7 +172,7 @@ public class AuthDtos {
         private String idToken;
 
         public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
+        public void setEmail(String email) { this.email = email != null ? email.trim().toLowerCase() : null; }
 
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }

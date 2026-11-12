@@ -224,7 +224,8 @@ app.use(async (req, res, next) => {
       const targetUrl = `${RENDER_BACKEND}${req.originalUrl}`;
       const headers: Record<string, string> = {};
       for (const [key, val] of Object.entries(req.headers)) {
-        if (key.toLowerCase() !== 'host' && typeof val === 'string') {
+        const lower = key.toLowerCase();
+        if (lower !== 'host' && lower !== 'content-length' && lower !== 'connection' && typeof val === 'string') {
           headers[key] = val;
         }
       }

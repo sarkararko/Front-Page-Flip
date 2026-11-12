@@ -62,6 +62,43 @@ public class AuthService {
     }
 
     /**
+     * Check email availability directly against Aiven Cloud MySQL users table.
+     */
+    @Transactional(readOnly = true)
+    public EmailAvailabilityResponse checkEmailAvailability(String rawEmail) {
+        if (rawEmail == null || rawEmail.trim().isEmpty()) {
+            throw new BadRequestException("Please enter a valid email address.");
+        }
+        String normalizedEmail = rawEmail.trim().toLowerCase();
+
+        if (normalizedEmail.equalsIgnoreCase(getNormalizedCreatorEmail())) {
+            return new EmailAvailabilityResponse(
+                    true,
+                    true,
+                    normalizedEmail,
+                    "This email address is reserved for system administration."
+            );
+        }
+
+        boolean exists = userRepository.findByEmailIgnoreCase(normalizedEmail).isPresent();
+        if (exists) {
+            return new EmailAvailabilityResponse(
+                    true,
+                    false,
+                    normalizedEmail,
+                    "An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account."
+            );
+        }
+
+        return new EmailAvailabilityResponse(
+                false,
+                false,
+                normalizedEmail,
+                "Email address is available."
+        );
+    }
+
+    /**
      * Public Student Registration.
      * Assigns ROLE_STUDENT (never ADMIN). Generates 6-digit verification code and dispatches Brevo email.
      */
@@ -70,7 +107,7 @@ public class AuthService {
         String normalizedEmail = request.getEmail().trim().toLowerCase();
 
         // Creator email cannot register as student
-        if (normalizedEmail.equalsIgnoreCase(creatorEmail.trim().toLowerCase())) {
+        if (normalizedEmail.equalsIgnoreCase(getNormalizedCreatorEmail())) {
             throw new BadRequestException("This email address is reserved for system administration.");
         }
 
@@ -95,7 +132,11 @@ public class AuthService {
         try {
             savedUser = userRepository.save(user);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            throw new BadRequestException("An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account.");
+            // Only report duplicate account if the email genuinely exists in MySQL
+            if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
+                throw new BadRequestException("An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account.");
+            }
+            throw e;
         }
 
         // Generate 6-digit numeric OTP verification code

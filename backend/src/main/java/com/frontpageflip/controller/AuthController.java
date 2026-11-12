@@ -27,6 +27,22 @@ public class AuthController {
         return ResponseEntity.ok(status);
     }
 
+    @GetMapping("/check-email")
+    public ResponseEntity<EmailAvailabilityResponse> checkEmailGet(@RequestParam("email") String email) {
+        EmailAvailabilityResponse response = authService.checkEmailAvailability(email);
+        return ResponseEntity.ok()
+                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+                .body(response);
+    }
+
+    @PostMapping("/check-email")
+    public ResponseEntity<EmailAvailabilityResponse> checkEmailPost(@Valid @RequestBody CheckEmailRequest request) {
+        EmailAvailabilityResponse response = authService.checkEmailAvailability(request.getEmail());
+        return ResponseEntity.ok()
+                .header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+                .body(response);
+    }
+
     @PostMapping("/student/register")
     public ResponseEntity<AuthResponse> registerStudent(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.registerStudent(request);

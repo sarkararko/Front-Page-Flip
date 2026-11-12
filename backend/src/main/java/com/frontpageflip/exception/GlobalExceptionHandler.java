@@ -97,6 +97,20 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(err, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler({
+            org.springframework.dao.DataAccessException.class,
+            org.springframework.transaction.TransactionException.class
+    })
+    public ResponseEntity<ErrorDetails> handleDatabaseException(Exception ex) {
+        logger.error("Database exception caught in GlobalExceptionHandler: {}", ex.getMessage(), ex);
+        ErrorDetails err = new ErrorDetails(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "Database Unavailable",
+                "Unable to verify registration because the database service is temporarily unavailable. Please try again in a moment."
+        );
+        return new ResponseEntity<>(err, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDetails> handleGeneralException(Exception ex) {
         logger.error("Unhandled exception caught in GlobalExceptionHandler: {}", ex.getMessage(), ex);

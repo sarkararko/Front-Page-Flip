@@ -111,6 +111,64 @@ public class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("Email availability check detects new email, existing email, casing, and whitespace")
+    void testCheckEmailAvailabilityNormalizationAndDetection() {
+        when(userRepository.findByEmailIgnoreCase("brandnew@university.edu")).thenReturn(Optional.empty());
+        EmailAvailabilityResponse availableResp = authService.checkEmailAvailability("  BrandNew@University.EDU  ");
+        assertFalse(availableResp.isExists());
+        assertTrue(availableResp.isAvailable());
+        assertEquals("brandnew@university.edu", availableResp.getEmail());
+
+        User existing = new User("usr-existing", "Existing User", "existing@university.edu", Role.STUDENT);
+        when(userRepository.findByEmailIgnoreCase("existing@university.edu")).thenReturn(Optional.of(existing));
+        EmailAvailabilityResponse existingResp = authService.checkEmailAvailability("  EXISTING@University.edu ");
+        assertTrue(existingResp.isExists());
+        assertFalse(existingResp.isAvailable());
+        assertEquals("An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account.", existingResp.getMessage());
+    }
+
+    @Test
+    @DisplayName("Registration normalizes mixed-case and whitespace emails before DB lookup and creation")
+    void testRegisterStudentNormalizesCasingAndWhitespace() {
+        RegisterRequest request = new RegisterRequest();
+        request.setName("  Ananya Das  ");
+        request.setEmail("  Ananya.New@University.EDU  ");
+        request.setPassword("StrongPass123!");
+
+        when(userRepository.findByEmailIgnoreCase("ananya.new@university.edu")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password_123");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(verificationTokenRepository.save(any(VerificationToken.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(emailService.sendVerificationEmail(anyString(), anyString(), anyString())).thenReturn(true);
+
+        AuthResponse response = authService.registerStudent(request);
+
+        assertEquals("ananya.new@university.edu", response.getUser().getEmail());
+        assertEquals("Ananya Das", response.getUser().getName());
+        assertEquals(Role.STUDENT, response.getUser().getRole());
+        verify(userRepository, times(1)).findByEmailIgnoreCase("ananya.new@university.edu");
+    }
+
+    @Test
+    @DisplayName("Database unavailability throws DataAccessException rather than false duplicate-email error")
+    void testRegisterStudentDatabaseFailureNotMaskedAsExistingAccount() {
+        RegisterRequest request = new RegisterRequest();
+        request.setName("Test Student");
+        request.setEmail("newstudent@university.edu");
+        request.setPassword("StrongPass123!");
+
+        when(userRepository.findByEmailIgnoreCase("newstudent@university.edu"))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Connection refused to Aiven MySQL"));
+
+        org.springframework.dao.DataAccessException ex = assertThrows(
+                org.springframework.dao.DataAccessException.class,
+                () -> authService.registerStudent(request)
+        );
+        assertFalse(ex.getMessage().toLowerCase().contains("already exists"));
+        verify(emailService, never()).sendVerificationEmail(anyString(), anyString(), anyString());
+    }
+
+    @Test
     @DisplayName("Unverified student cannot log in until email is verified")
     void testUnverifiedStudentCannotLogin() {
         LoginRequest request = new LoginRequest();

@@ -48,6 +48,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/student/login",
                                 "/api/auth/student/register",
                                 "/api/v1/auth/student/register",
+                                "/api/auth/check-email",
+                                "/api/v1/auth/check-email",
                                 "/api/auth/admin/login",
                                 "/api/v1/auth/admin/login",
                                 "/api/admin/login",

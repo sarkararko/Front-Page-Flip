@@ -35,8 +35,18 @@ export function getApiBaseUrl(): string {
   return base ? `${base}/api/v1` : '/api/v1';
 }
 
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T | null> {
-  const token = StorageService.getSessionToken();
+interface ApiFetchConfig {
+  throwOnNetworkError?: boolean;
+  skipAuth?: boolean;
+  timeoutMs?: number;
+}
+
+async function apiFetch<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  config?: ApiFetchConfig
+): Promise<T | null> {
+  const token = config?.skipAuth ? null : StorageService.getSessionToken();
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...((options.headers as Record<string, string>) || {}),
@@ -52,8 +62,8 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   const url = endpoint.startsWith('http') ? endpoint : `${apiBase}${endpoint}`;
 
   const controller = new AbortController();
-  // 25s timeout allows Render free-tier cold starts to complete without premature abortion
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  const timeoutDuration = config?.timeoutMs ?? 25000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
   try {
     const res = await fetch(url, {
@@ -63,12 +73,16 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     });
     clearTimeout(timeoutId);
     if (res.redirected && res.url.includes('/login')) {
-      throw new Error('401 Unauthorized: Session is expired or unauthorized. Please re-authenticate.');
+      const err: any = new Error('401 Unauthorized: Session is expired or unauthorized. Please re-authenticate.');
+      err.status = 401;
+      throw err;
     }
     if (!res.ok) {
       const errData = await res.json().catch(() => null);
       const errMsg = errData?.message || errData?.error || `HTTP ${res.status}: ${res.statusText}`;
-      throw new Error(errMsg);
+      const err: any = new Error(errMsg);
+      err.status = res.status;
+      throw err;
     }
     const contentType = res.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -77,9 +91,25 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     return null;
   } catch (err: any) {
     clearTimeout(timeoutId);
-    // If server returned an HTTP error, propagate it
-    if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && !err.message.includes('aborted')) {
+    // If server returned an HTTP error, always propagate it with its status code
+    if (typeof err?.status === 'number') {
       throw err;
+    }
+    const isNetworkOrAbortError =
+      !err?.message ||
+      err.message.includes('Failed to fetch') ||
+      err.message.includes('NetworkError') ||
+      err.message.includes('aborted') ||
+      err.name === 'AbortError';
+
+    if (!isNetworkOrAbortError) {
+      throw err;
+    }
+
+    if (config?.throwOnNetworkError) {
+      throw new Error(
+        'Unable to connect to the server to verify registration. Please check your connection and try again.'
+      );
     }
     return null;
   }
@@ -364,167 +394,185 @@ export const ApiService = {
     email: string,
     password?: string
   ): Promise<{ user: User; requiresVerification: boolean; verificationCode?: string; message?: string }> {
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+
+    if (!cleanEmail) {
+      throw new Error('Please enter a valid email address.');
+    }
 
     // Scenario C: Already authenticated user protection
     const currentUser = StorageService.getCurrentUser();
-    if (currentUser) {
-      throw new Error(`You are already signed in as ${currentUser.name} (${currentUser.email}). Please sign out first to register a new account.`);
+    const activeToken = StorageService.getSessionToken();
+    if (currentUser && activeToken) {
+      throw new Error(
+        `You are already signed in as ${currentUser.name} (${currentUser.email}). Please sign out first to register a new account.`
+      );
     }
 
-    // Check existing local storage to prevent duplicate registration
-    const existingLocalUser = StorageService.getUserByEmail(cleanEmail);
-    if (existingLocalUser) {
-      throw new Error('An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account.');
-    }
-
-    // Attempt real backend call first
+    // Step 1: Verify email availability directly against Aiven Cloud MySQL via backend
+    // Never rely on localStorage, sessionStorage, or cached frontend lists
     try {
-      const backendRes = await apiFetch<any>('/auth/student/register', {
-        method: 'POST',
-        body: JSON.stringify({ name: name.trim(), email: cleanEmail, password: password || '' }),
-      });
-      if (backendRes) {
-        const newUser: User = {
-          id: backendRes.user?.id || `usr-${Date.now()}`,
-          name: backendRes.user?.name || name.trim(),
-          email: cleanEmail,
-          role: 'student',
-          avatar: name.slice(0, 2).toUpperCase(),
-          emailVerified: false,
-          createdAt: new Date().toISOString(),
-          provider: 'email',
-        };
-        StorageService.addUser(newUser);
-        return {
-          user: newUser,
-          requiresVerification: true,
-          message: backendRes.message || 'Registration successful! A 6-digit verification code has been dispatched to your email.',
-        };
+      const checkRes = await apiFetch<{
+        exists: boolean;
+        available: boolean;
+        reserved?: boolean;
+        email: string;
+        message?: string;
+      }>(
+        '/auth/check-email',
+        {
+          method: 'POST',
+          cache: 'no-store',
+          body: JSON.stringify({ email: cleanEmail }),
+        },
+        { throwOnNetworkError: true, skipAuth: true, timeoutMs: 45000 }
+      );
+
+      if (checkRes) {
+        if (checkRes.reserved) {
+          throw new Error(
+            checkRes.message || 'This email address is reserved for system administration.'
+          );
+        }
+        if (checkRes.exists) {
+          throw new Error(
+            checkRes.message ||
+              'An account with this email address already exists. Please sign in instead or use Forgot Password if you cannot access your account.'
+          );
+        }
       }
-    } catch (e: any) {
-      // Propagate any server-side validation or SMTP failure
-      throw e;
+    } catch (checkErr: any) {
+      const status = checkErr?.status;
+      // Backward compatibility if backend does not yet expose /auth/check-email:
+      // proceed directly to /auth/student/register which performs the same Aiven MySQL check.
+      if (status !== 401 && status !== 404 && status !== 405) {
+        if (status && status >= 500) {
+          throw new Error(
+            checkErr?.message && !checkErr.message.toLowerCase().includes('already exists')
+              ? checkErr.message
+              : 'Registration could not be verified because the database service is temporarily unavailable. Please try again in a moment.'
+          );
+        }
+        throw checkErr;
+      }
     }
 
-    // Offline dev mode fallback only on localhost
-    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      StorageService.saveVerificationCode(cleanEmail, verificationCode);
+    // Step 2: Register student in Aiven Cloud MySQL & send Brevo verification email
+    let backendRes: any;
+    try {
+      backendRes = await apiFetch<any>(
+        '/auth/student/register',
+        {
+          method: 'POST',
+          cache: 'no-store',
+          body: JSON.stringify({ name: cleanName, email: cleanEmail, password: password || '' }),
+        },
+        { throwOnNetworkError: true, skipAuth: true, timeoutMs: 45000 }
+      );
+    } catch (err: any) {
+      const status = err?.status;
+      if (status && status >= 500) {
+        throw new Error(
+          err?.message && !err.message.toLowerCase().includes('already exists')
+            ? err.message
+            : 'Registration could not be verified because the database or server is temporarily unavailable. Please try again in a moment.'
+        );
+      }
+      throw err;
+    }
 
-      const initials =
-        name
-          .split(' ')
-          .map((n) => n[0])
-          .join('')
-          .slice(0, 2)
-          .toUpperCase() || 'ST';
-
+    if (backendRes) {
       const newUser: User = {
-        id: `usr-${Date.now()}`,
-        name,
-        email: cleanEmail,
+        id: backendRes.user?.id || `usr-${Date.now()}`,
+        name: backendRes.user?.name || cleanName,
+        email: backendRes.user?.email || cleanEmail,
         role: 'student',
-        avatar: initials,
+        avatar: (backendRes.user?.name || cleanName).slice(0, 2).toUpperCase(),
         emailVerified: false,
         createdAt: new Date().toISOString(),
         provider: 'email',
-        passwordHash: password ? await hashPassword(password) : undefined,
       };
-
-      StorageService.addUser(newUser);
-
       return {
         user: newUser,
         requiresVerification: true,
-        verificationCode,
-        message: `Offline Dev Mode: Verification code generated (${verificationCode}).`,
+        message:
+          backendRes.message ||
+          'Registration successful! A 6-digit verification code has been dispatched to your email.',
       };
     }
 
-    throw new Error("We couldn't send your verification code. Please check your email address and try again.");
+    throw new Error(
+      'Registration could not be verified with the server right now. Please try again in a moment.'
+    );
   },
 
   async verifyEmail(email: string, code: string): Promise<{ success: boolean; message: string; user?: User }> {
     const cleanEmail = email.toLowerCase().trim();
 
-    // Attempt real backend call first
-    try {
-      const backendRes = await apiFetch<any>('/auth/verify-email', {
+    const backendRes = await apiFetch<any>(
+      '/auth/verify-email',
+      {
         method: 'POST',
+        cache: 'no-store',
         body: JSON.stringify({ email: cleanEmail, token: code.trim() }),
-      });
-      if (backendRes && backendRes.user) {
-        const verifiedUser: User = {
-          id: backendRes.user.id,
-          name: backendRes.user.name,
-          email: backendRes.user.email,
-          role: 'student',
-          emailVerified: true,
-          createdAt: new Date().toISOString(),
-          provider: 'email',
-          avatar: backendRes.user.name.slice(0, 2).toUpperCase(),
-        };
-        if (backendRes.token) {
-          StorageService.setSessionToken(backendRes.token);
-        }
+      },
+      { throwOnNetworkError: true, skipAuth: true, timeoutMs: 45000 }
+    );
+
+    if (backendRes && backendRes.user) {
+      const verifiedUser: User = {
+        id: backendRes.user.id,
+        name: backendRes.user.name,
+        email: backendRes.user.email,
+        role: 'student',
+        emailVerified: true,
+        createdAt: new Date().toISOString(),
+        provider: 'email',
+        avatar: backendRes.user.name.slice(0, 2).toUpperCase(),
+      };
+      if (backendRes.token) {
+        StorageService.setSessionToken(backendRes.token);
+      }
+      if (StorageService.getUserByEmail(verifiedUser.email)) {
         StorageService.updateUser(verifiedUser);
-        StorageService.setCurrentUser(verifiedUser);
-        return { success: true, message: backendRes.message || 'Email verified successfully!', user: verifiedUser };
+      } else {
+        StorageService.addUser(verifiedUser);
       }
-    } catch (e: any) {
-      if (e?.message && !e.message.includes('Failed to fetch')) {
-        throw e;
-      }
+      StorageService.setCurrentUser(verifiedUser);
+      return {
+        success: true,
+        message: backendRes.message || 'Email verified successfully!',
+        user: verifiedUser,
+      };
     }
 
-    const result = StorageService.verifyCode(cleanEmail, code);
-    if (!result.success) {
-      return result;
-    }
-
-    const users = StorageService.getUsers();
-    const user = users.find((u) => u.email.toLowerCase() === cleanEmail);
-    if (user) {
-      user.emailVerified = true;
-      StorageService.updateUser(user);
-      StorageService.setCurrentUser(user);
-      return { success: true, message: result.message, user };
-    }
-
-    return { success: false, message: 'User record not found.' };
+    return { success: false, message: 'Email verification failed. Please check the code and try again.' };
   },
 
   async resendVerificationCode(email: string): Promise<{ success: boolean; code?: string; message: string }> {
     const cleanEmail = email.toLowerCase().trim();
 
-    // Attempt real backend call first
-    try {
-      const backendRes = await apiFetch<any>('/auth/resend-verification', {
+    const backendRes = await apiFetch<any>(
+      '/auth/resend-verification',
+      {
         method: 'POST',
+        cache: 'no-store',
         body: JSON.stringify({ email: cleanEmail }),
-      });
-      if (backendRes) {
-        return {
-          success: true,
-          message: backendRes.message || `If an unverified account exists, a new verification code has been dispatched to ${cleanEmail}.`,
-        };
-      }
-    } catch (e: any) {
-      throw e;
-    }
+      },
+      { throwOnNetworkError: true, skipAuth: true, timeoutMs: 45000 }
+    );
 
-    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      StorageService.saveVerificationCode(cleanEmail, code);
+    if (backendRes) {
       return {
         success: true,
-        code,
-        message: `Offline Dev Mode: A new verification code was generated (${code}).`,
+        message:
+          backendRes.message ||
+          `If an unverified account exists, a new verification code has been dispatched to ${cleanEmail}.`,
       };
     }
 
-    throw new Error("We couldn't send your verification code. Please check your email address and try again.");
+    throw new Error("We couldn't send your verification code right now. Please try again in a moment.");
   },
 
   async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
